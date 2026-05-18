@@ -7,6 +7,8 @@
 <meta name="description" content="مكتبة ضخمة من الأفلام والمسلسلات التركية والهندية والكورية والأمريكية مدبلجة بالعربية والدارجة المغربية. تتجدد تلقائياً."/>
 <meta property="og:title" content="الموسوعة ستريم"/>
 <meta property="og:description" content="أضخم مكتبة مرئية عربية — أفلام ومسلسلات مدبلجة"/>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
 <link rel="stylesheet" href="css/main.css"/>
 <style>
   .hero-transition { animation: heroFade 1s ease; }
@@ -403,6 +405,11 @@ Promise.all([
     if (heroItems.length > 1) heroTimer = setInterval(nextHero, 8000);
   }
 }).catch(err => console.error('Load error:', err));
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
 </script>
 </body>
 </html>
