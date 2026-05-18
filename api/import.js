@@ -207,7 +207,11 @@ export default async function handler(req, res) {
   if (req.method === 'POST' && action === 'import-film') {
     const { ytId, title_ar, origin, language, category, year, duration_sec, description, poster_url, embeddable } = req.body || {};
     if (!ytId || !title_ar) return res.status(400).json({ error: 'ytId and title_ar required' });
+    const isArchive = ytId.startsWith('arc_');
     const id = `film_${ytId}`;
+    const defaultPoster = isArchive
+      ? `https://archive.org/services/img/${ytId.slice(4)}`
+      : `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
     const r = await sb('POST', 'content', {
       id, type: 'film',
       title_ar:     cleanTitle(title_ar),
@@ -215,7 +219,7 @@ export default async function handler(req, res) {
       language:     language  || detectLanguage(title_ar),
       category:     category  || detectCategory(title_ar),
       yt_id:        ytId,
-      poster_url:   poster_url || `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`,
+      poster_url:   poster_url || defaultPoster,
       year:         year || null,
       duration_sec: duration_sec || null,
       description:  (description || '').slice(0, 1000) || null,

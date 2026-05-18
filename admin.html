@@ -193,8 +193,6 @@
 </div><!-- /adminApp -->
 
 <script>
-const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhZGF6eHBvZml6cmZvY3pobWtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwOTEyNTIsImV4cCI6MjA5NDY2NzI1Mn0.UxBR2R4pwB8_UMaQfKUmfR_v7NYuCJ_xSndAvE3IUR4'; // read-only stats only
 let TOKEN = '';
 const PER = 20;
 let contentPage = 0;
@@ -261,22 +259,9 @@ function showSection(name) {
   if (name === 'logs')    loadLogs();
 }
 
-/* ── Supabase anon counter (active content only, for stats) ── */
-async function sbCount(path) {
-  const r = await fetch(`${SB_URL}/${path}`, {
-    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Prefer': 'count=exact', 'Range': '0-0' }
-  });
-  return parseInt(r.headers.get('content-range')?.split('/')[1] || '0');
-}
-
 /* ── Stats ── */
 async function loadStats() {
-  const [films, series, eps, total] = await Promise.all([
-    sbCount('content?type=eq.film&status=eq.active'),
-    sbCount('content?type=eq.series&status=eq.active'),
-    sbCount('episodes'),
-    sbCount('content?status=eq.active')
-  ]);
+  const { films = 0, series = 0, episodes: eps = 0, total = 0, distribution = {} } = await moderateGet('list-stats');
   document.getElementById('st-films').textContent  = films.toLocaleString('ar');
   document.getElementById('st-series').textContent = series.toLocaleString('ar');
   document.getElementById('st-eps').textContent    = eps.toLocaleString('ar');
@@ -284,7 +269,7 @@ async function loadStats() {
 
   // Origin distribution
   const origins = ['turkish','indian','chinese','moroccan','american','korean','other'];
-  const counts = await Promise.all(origins.map(o => sbCount(`content?status=eq.active&origin=eq.${o}`)));
+  const counts = origins.map(o => distribution[o] || 0);
   const maxC = Math.max(...counts);
   document.getElementById('originChart').innerHTML = origins.map((o, i) => `
     <div style="display:flex;align-items:center;gap:12px">

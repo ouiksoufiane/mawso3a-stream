@@ -84,8 +84,11 @@ const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
 const SB_ANON = 'sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az';
 
 function embed(ytId) {
+  const src = ytId.startsWith('arc_')
+    ? `https://archive.org/embed/${esc(ytId.slice(4))}?autoplay=1`
+    : `https://www.youtube.com/embed/${esc(ytId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
   document.getElementById('playerFrame').innerHTML =
-    `<iframe src="https://www.youtube.com/embed/${esc(ytId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1"
+    `<iframe src="${src}"
       allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" loading="eager"></iframe>`;
 }
 

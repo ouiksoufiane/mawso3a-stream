@@ -1,0 +1,65 @@
+{
+  "name": "الموسوعة — Archive.org أفلام عامة (أسبوعي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "arc-trigger",
+      "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Archive.org search queries for Arabic-dubbed public domain films\nconst queries = [\n  { q: 'subject:(arabic dubbed) mediatype:movies', lang: 'ar_dubbed', origin: 'american' },\n  { q: 'collection:feature_films subject:(arabic) mediatype:movies', lang: 'ar_dubbed', origin: 'american' },\n  { q: 'subject:(مدبلج) mediatype:movies', lang: 'ar_dubbed', origin: 'other' },\n  { q: 'subject:(فيلم عربي) mediatype:movies', lang: 'ar_dubbed', origin: 'moroccan' },\n  { q: 'collection:opensource_movies subject:(bollywood arabic) mediatype:movies', lang: 'ar_dubbed', origin: 'indian' }\n];\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "arc-queries",
+      "name": "Generate Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://archive.org/advancedsearch.php?q={{ encodeURIComponent($json.q) }}&output=json&rows=30&fl[]=identifier,title,description,year,avg_rating,runtime&sort[]=downloads+desc",
+        "options": { "timeout": 20000 }
+      },
+      "id": "arc-search",
+      "name": "Search Archive.org",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst query = $('Generate Queries').item.json;\nconst docs = body?.response?.docs || [];\n\nconst MIN_RUNTIME_SEC = 3000; // ~50 min minimum\n\nfunction parseRuntime(r) {\n  if (!r) return 0;\n  if (typeof r === 'number') return r;\n  const s = String(r);\n  // HH:MM:SS or MM:SS\n  const parts = s.split(':').map(Number);\n  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];\n  if (parts.length === 2) return parts[0]*60 + parts[1];\n  return parseInt(s) || 0;\n}\n\nconst films = docs\n  .filter(d => d.identifier && d.title)\n  .map(d => {\n    const dur = parseRuntime(d.runtime);\n    return {\n      identifier: d.identifier,\n      ytId: 'arc_' + d.identifier,\n      title: d.title,\n      year: d.year ? parseInt(d.year) : null,\n      duration_sec: dur || null,\n      lang: query.lang || 'ar_dubbed',\n      origin: query.origin || 'other',\n      rating: d.avg_rating || null\n    };\n  })\n  .filter(d => !d.duration_sec || d.duration_sec >= MIN_RUNTIME_SEC);\n\nconsole.log(`[Archive.org] ${query.q} → ${films.length} films`);\nreturn [{ json: { films, query: query.q } }];"
+      },
+      "id": "arc-extract",
+      "name": "Extract Films",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const filmList = $input.first().json.films || [];\nconst queryLabel = $input.first().json.query || 'archive.org';\nconst API_URL = 'https://mawso3a-stream.vercel.app/api/import';\nconst SECRET = process.env.N8N_SECRET;\n\nlet imported = 0, skipped = 0, errors = 0;\n\nfor (const f of filmList) {\n  try {\n    const r = await fetch(`${API_URL}?action=import-film`, {\n      method: 'POST',\n      headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n      body: JSON.stringify({\n        ytId:         f.ytId,\n        title_ar:     f.title,\n        origin:       f.origin,\n        language:     f.lang,\n        year:         f.year,\n        duration_sec: f.duration_sec,\n        source:       'archive.org'\n      })\n    });\n    const data = await r.json().catch(() => ({ ok: false }));\n    data.ok ? imported++ : (r.status === 409 ? skipped++ : errors++);\n  } catch(e) {\n    console.error('Archive import error:', f.identifier, e.message);\n    errors++;\n  }\n}\n\n// Log to discovery_log\nawait fetch(`${API_URL}?action=log`, {\n  method: 'POST',\n  headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n  body: JSON.stringify({ query: `archive.org: ${queryLabel}`, found: filmList.length, imported, skipped })\n}).catch(() => {});\n\nconsole.log(`[Archive.org] DONE: ${imported} imported, ${skipped} skipped, ${errors} errors`);\nreturn [{ json: { imported, skipped, errors } }];"
+      },
+      "id": "arc-import",
+      "name": "Import to Mawso3a",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every Week": { "main": [[{ "node": "Generate Queries", "type": "main", "index": 0 }]] },
+    "Generate Queries": { "main": [[{ "node": "Search Archive.org", "type": "main", "index": 0 }]] },
+    "Search Archive.org": { "main": [[{ "node": "Extract Films", "type": "main", "index": 0 }]] },
+    "Extract Films": { "main": [[{ "node": "Import to Mawso3a", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

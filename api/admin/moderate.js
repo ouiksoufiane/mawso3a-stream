@@ -5,6 +5,18 @@ const ALLOWED_ORIGINS = new Set([
   'https://mawso3a-stream-chi.vercel.app'
 ]);
 
+async function sbHead(path, serviceKey) {
+  const res = await fetch(`${SB_URL}/${path}`, {
+    headers: {
+      'apikey': serviceKey,
+      'Authorization': `Bearer ${serviceKey}`,
+      'Prefer': 'count=exact',
+      'Range': '0-0'
+    }
+  });
+  return parseInt(res.headers.get('content-range')?.split('/')[1] || '0') || 0;
+}
+
 async function sb(method, path, body, serviceKey) {
   const res = await fetch(`${SB_URL}/${path}`, {
     method,
@@ -42,6 +54,20 @@ export default async function handler(req, res) {
   }
 
   const action = req.query.action || (req.body && req.body.action);
+
+  // ── STATS ─────────────────────────────────────────
+  if (req.method === 'GET' && action === 'list-stats') {
+    const origins = ['turkish','indian','chinese','moroccan','american','korean','other'];
+    const [films, series, eps, total, ...originCounts] = await Promise.all([
+      sbHead('content?type=eq.film&status=eq.active', SUPABASE_SERVICE),
+      sbHead('content?type=eq.series&status=eq.active', SUPABASE_SERVICE),
+      sbHead('episodes', SUPABASE_SERVICE),
+      sbHead('content?status=eq.active', SUPABASE_SERVICE),
+      ...origins.map(o => sbHead(`content?status=eq.active&origin=eq.${o}`, SUPABASE_SERVICE))
+    ]);
+    const distribution = Object.fromEntries(origins.map((o, i) => [o, originCounts[i]]));
+    return res.json({ ok: true, films, series, episodes: eps, total, distribution });
+  }
 
   // ── LIST all content (admin view, any status) ────
   if (req.method === 'GET' && action === 'list-content') {
