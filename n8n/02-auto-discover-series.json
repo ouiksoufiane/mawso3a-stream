@@ -28,7 +28,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer MAWSO3A_N8N_SECRET" },
+            { "name": "Authorization", "value": "Bearer wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=" },
             { "name": "Content-Type",  "value": "application/json" }
           ]
         },
@@ -56,7 +56,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Import each series metadata + first episode\nconst { series } = $input.first().json;\nconst API_URL = 'https://mawso3a-stream.vercel.app/api/import';\nconst SECRET = 'MAWSO3A_N8N_SECRET';\n\nasync function post(action, body) {\n  const r = await fetch(`${API_URL}?action=${action}`, {\n    method: 'POST',\n    headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n    body: JSON.stringify(body)\n  });\n  return r.json();\n}\n\nlet imported = 0, skipped = 0;\nfor (const s of series) {\n  // Create series entry\n  const sr = await post('import-series', {\n    id: s.series_id, title_ar: s.title_ar, title_orig: s.title_orig,\n    origin: s.origin, language: s.language, category: s.category,\n    poster_url: s.poster_url, year: s.year, total_eps: 0\n  });\n  \n  // Import first episode\n  const er = await post('import-episode', {\n    ytId: s.episode_yt_id, series_id: s.series_id,\n    title_ar: s.title_orig, season: 1, episode: 1\n  });\n  \n  er.ok ? imported++ : skipped++;\n}\n\nconsole.log(`✅ Series auto-discovery: ${imported} imported, ${skipped} skipped`);\nreturn [{ json: { imported, skipped, run_at: new Date().toISOString() } }];"
+        "jsCode": "// Import each series metadata + first episode\nconst { series } = $input.first().json;\nconst API_URL = 'https://mawso3a-stream.vercel.app/api/import';\nconst SECRET = 'wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=';\n\nasync function post(action, body) {\n  const r = await fetch(`${API_URL}?action=${action}`, {\n    method: 'POST',\n    headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n    body: JSON.stringify(body)\n  });\n  return r.json();\n}\n\nlet imported = 0, skipped = 0;\nfor (const s of series) {\n  // Create series entry\n  const sr = await post('import-series', {\n    id: s.series_id, title_ar: s.title_ar, title_orig: s.title_orig,\n    origin: s.origin, language: s.language, category: s.category,\n    poster_url: s.poster_url, year: s.year, total_eps: 0\n  });\n  \n  // Import first episode\n  const er = await post('import-episode', {\n    ytId: s.episode_yt_id, series_id: s.series_id,\n    title_ar: s.title_orig, season: 1, episode: 1\n  });\n  \n  er.ok ? imported++ : skipped++;\n}\n\nconsole.log(`✅ Series auto-discovery: ${imported} imported, ${skipped} skipped`);\nreturn [{ json: { imported, skipped, run_at: new Date().toISOString() } }];"
       },
       "id": "ms-02-05",
       "name": "Import Series & Episodes",
@@ -74,6 +74,6 @@
   "active": false,
   "settings": { "executionOrder": "v1" },
   "_doc": {
-    "note": "Replace 'mawso3a-stream.vercel.app' and 'MAWSO3A_N8N_SECRET' after deployment"
+    "note": "Replace 'mawso3a-stream.vercel.app' and 'wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=' after deployment"
   }
 }

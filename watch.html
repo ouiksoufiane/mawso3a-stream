@@ -7,33 +7,43 @@
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
-
 <nav class="nav solid">
   <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
   <div class="nav-links">
     <a href="javascript:history.back()" class="nav-link">← رجوع</a>
-    <a href="search.html" class="nav-link keep nav-search-btn" title="بحث">🔍</a>
   </div>
+  <div class="nav-right"><a href="search.html" class="nav-icon-btn keep">🔍</a></div>
 </nav>
 
-<div class="watch-wrap">
-  <div class="player-frame" id="playerFrame">
-    <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:14px">جاري التحميل…</div>
-  </div>
-  <div class="player-info">
-    <div class="player-title" id="playerTitle">…</div>
-    <div class="player-meta" id="playerMeta"></div>
-    <div class="player-desc" id="playerDesc"></div>
-    <div class="player-nav" id="playerNav"></div>
-  </div>
-</div>
+<div class="watch-layout">
+  <div class="watch-main">
+    <div class="player-frame" id="playerFrame">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted)">جاري التحميل…</div>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="pTitle">…</div>
+      <div class="player-meta"  id="pMeta"></div>
+      <div id="pExtra"></div>
+      <div class="player-nav"  id="pNav"></div>
+    </div>
 
-<!-- Related -->
-<div class="section" id="relatedSection" style="display:none">
-  <div class="sec-header">
-    <div class="sec-title">محتوى مشابه</div>
+    <!-- Related content -->
+    <div class="section" id="relSection" style="display:none;padding-top:40px">
+      <div class="sec-header">
+        <div class="sec-title">محتوى مشابه</div>
+        <div id="relCount" style="font-size:13px;color:var(--text-dim)"></div>
+      </div>
+      <div class="row-wrap">
+        <div class="row-scroll" id="relRow"></div>
+      </div>
+    </div>
   </div>
-  <div class="row-scroll" id="relatedRow"></div>
+
+  <!-- Episode Sidebar (series only) -->
+  <div class="watch-sidebar" id="sidebar" style="display:none">
+    <div class="sidebar-header" id="sidebarTitle">قائمة الحلقات</div>
+    <div id="sidebarEps"></div>
+  </div>
 </div>
 
 <footer class="footer" style="margin-top:40px">
@@ -41,83 +51,127 @@
 </footer>
 
 <script type="module">
-import { getContentById, getEpisodes } from './js/api.js';
+import { getContentById, getEpisodes, getContent } from './js/api.js';
+import { originBadge, langBadge, cardHTML, CW, toast } from './js/utils.js';
 
 const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
 const SB_ANON = 'sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az';
 
 const sp = new URLSearchParams(location.search);
-const filmId   = sp.get('id');
+const filmId    = sp.get('id');
 const episodeId = sp.get('episode');
 const seriesId  = sp.get('series');
 
 function embed(ytId) {
   document.getElementById('playerFrame').innerHTML =
-    `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0" allowfullscreen allow="autoplay"></iframe>`;
+    `<iframe src="https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>`;
 }
 
-function originBadge(o) {
-  const m={turkish:'🇹🇷 تركي',indian:'🇮🇳 هندي',korean:'🇰🇷 كوري',moroccan:'🇲🇦 مغربي',american:'🇺🇸 أمريكي'};
-  const c={turkish:'b-tr',indian:'b-in',korean:'b-ko',moroccan:'b-ma',american:'b-us'};
-  return `<span class="badge ${c[o]||'b-ar'}">${m[o]||o}</span>`;
+function badgeHTML(item) {
+  return `${originBadge(item.origin||'other')}${langBadge(item.language||'ar_dubbed')}${item.year?`<span class="badge b-film">${item.year}</span>`:''}${item.duration_sec?`<span class="badge" style="background:rgba(255,255,255,.06);color:var(--text-dim)">${Math.round(item.duration_sec/60)} دقيقة</span>`:''}`;
 }
 
 async function loadFilm(id) {
   const film = await getContentById(id);
-  if (!film) { document.getElementById('playerTitle').textContent='فيلم غير موجود'; return; }
+  if (!film) { document.getElementById('pTitle').textContent = 'فيلم غير موجود'; return; }
+
   document.title = `${film.title_ar} — الموسوعة ستريم`;
   embed(film.yt_id);
-  document.getElementById('playerTitle').textContent = film.title_ar;
-  document.getElementById('playerMeta').innerHTML = `
-    ${originBadge(film.origin)}
-    ${film.language==='darija'?'<span class="badge b-ar">🇲🇦 دارجة</span>':'<span class="badge b-ar">عربي مدبلج</span>'}
-    ${film.year ? `<span class="badge b-dr">${film.year}</span>` : ''}
-    ${film.duration_sec ? `<span class="badge" style="background:rgba(255,255,255,.06);color:var(--text-dim)">${Math.round(film.duration_sec/60)} دقيقة</span>` : ''}
-  `;
-  document.getElementById('playerDesc').textContent = film.description || '';
+  document.getElementById('pTitle').textContent = film.title_ar;
+  document.getElementById('pMeta').innerHTML = badgeHTML(film);
+  if (film.description) {
+    document.getElementById('pExtra').innerHTML = `<div class="player-desc">${film.description}</div>`;
+  }
+
+  // Save to continue watching
+  CW.save({ id: film.id, title: film.title_ar, href: `watch.html?id=${film.id}`, type: 'film', progress: 5 });
+
+  // Related
+  const related = await getContent({ type:'film', origin: film.origin, limit: 10 }).catch(()=>[]);
+  const others = related.filter(r => r.id !== film.id);
+  if (others.length) {
+    document.getElementById('relSection').style.display = '';
+    document.getElementById('relCount').textContent = `${others.length} فيلم مشابه`;
+    document.getElementById('relRow').innerHTML = others.map(i => cardHTML(i)).join('');
+  }
 }
 
 async function loadEpisode(epId, serId) {
-  // Get episode from DB
-  const res = await fetch(`${SB_URL}/episodes?id=eq.${encodeURIComponent(epId)}&select=*`, {
-    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` }
-  });
-  const arr = await res.json();
-  const ep = arr[0];
-  if (!ep) { document.getElementById('playerTitle').textContent='حلقة غير موجودة'; return; }
+  const [epArr, series] = await Promise.all([
+    fetch(`${SB_URL}/episodes?id=eq.${encodeURIComponent(epId)}&select=*`, {
+      headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` }
+    }).then(r=>r.json()),
+    serId ? getContentById(serId) : null
+  ]);
+  const ep = epArr?.[0];
+  if (!ep) { document.getElementById('pTitle').textContent = 'حلقة غير موجودة'; return; }
 
+  document.title = `${ep.title_ar||'حلقة '+ep.episode} — الموسوعة ستريم`;
   embed(ep.yt_id);
-  document.title = `${ep.title_ar||'حلقة'} — الموسوعة ستريم`;
-  document.getElementById('playerTitle').textContent = ep.title_ar || `الحلقة ${ep.episode}`;
-  document.getElementById('playerMeta').innerHTML = `
+  document.getElementById('pTitle').textContent = ep.title_ar || `الحلقة ${ep.episode}`;
+  document.getElementById('pMeta').innerHTML = `
     <span class="badge b-ser">الموسم ${ep.season||1} — الحلقة ${ep.episode}</span>
-    ${ep.darija_desc ? '<span class="badge b-ma">🇲🇦 دارجة</span>' : ''}
-    ${ep.source ? `<span class="badge b-ar">${ep.source}</span>` : ''}
-    ${ep.duration_sec ? `<span class="badge" style="background:rgba(255,255,255,.06);color:var(--text-dim)">${Math.round(ep.duration_sec/60)} دقيقة</span>` : ''}
+    ${ep.darija_desc?'<span class="badge b-ma">🇲🇦 دارجة</span>':''}
+    ${ep.source?`<span class="badge b-ar">${ep.source}</span>`:''}
+    ${ep.duration_sec?`<span class="badge" style="background:rgba(255,255,255,.06);color:var(--text-dim)">${Math.round(ep.duration_sec/60)} دقيقة</span>`:''}
   `;
+
+  // Darija block
   if (ep.darija_desc) {
-    document.getElementById('playerDesc').innerHTML = `
-      <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:var(--radius-sm);padding:14px 16px;margin-top:8px">
+    document.getElementById('pExtra').innerHTML = `
+      <div class="player-desc" style="border-right:3px solid #4ade80;padding-right:16px;margin-top:12px">
         <div style="color:#4ade80;font-size:12px;font-weight:700;margin-bottom:6px">🇲🇦 ملخص بالدارجة</div>
-        <div style="font-size:14px;line-height:1.75;color:var(--text-dim)">${ep.darija_desc}</div>
+        ${ep.darija_desc}
       </div>`;
   }
 
-  // Prev / Next navigation
+  // Save CW
+  if (series) {
+    CW.save({
+      id: series.id, title: series.title_ar, sub: `الموسم ${ep.season||1} — الحلقة ${ep.episode}`,
+      href: `watch.html?episode=${epId}&series=${serId}`, type:'series', progress: 20
+    });
+  }
+
+  // Load episodes for sidebar + prev/next
   if (serId) {
     const eps = await getEpisodes(serId, ep.season);
-    const idx = eps.findIndex(e=>e.id===epId);
-    const nav = document.getElementById('playerNav');
-    let navHtml = `<a href="series-detail.html?id=${encodeURIComponent(serId)}" class="btn btn-ghost">📺 قائمة الحلقات</a>`;
-    if (idx > 0) navHtml = `<a href="watch.html?episode=${encodeURIComponent(eps[idx-1].id)}&series=${encodeURIComponent(serId)}" class="btn btn-ghost">‹ السابقة</a>` + navHtml;
-    if (idx < eps.length-1) navHtml += `<a href="watch.html?episode=${encodeURIComponent(eps[idx+1].id)}&series=${encodeURIComponent(serId)}" class="btn btn-primary">التالية ›</a>`;
-    nav.innerHTML = navHtml;
+    const idx = eps.findIndex(e => e.id === epId);
+
+    // Sidebar
+    document.getElementById('sidebar').style.display = '';
+    if (series) document.getElementById('sidebarTitle').textContent = series.title_ar;
+    document.getElementById('sidebarEps').innerHTML = eps.map((e, i) => {
+      const isCur = e.id === epId;
+      const url = `watch.html?episode=${encodeURIComponent(e.id)}&series=${encodeURIComponent(serId)}`;
+      return `<a href="${url}" class="sidebar-ep ${isCur?'current':''}">
+        <div class="sidebar-ep-num">${e.episode||i+1}</div>
+        <div class="sidebar-ep-info">
+          <div class="sidebar-ep-title">${e.title_ar||'الحلقة '+(e.episode||i+1)}</div>
+          <div class="sidebar-ep-meta">${e.duration_sec?Math.round(e.duration_sec/60)+'د':''}</div>
+        </div>
+        ${isCur?'<span style="color:var(--accent);font-size:12px">▶ الآن</span>':''}
+      </a>`;
+    }).join('');
+
+    // Scroll current into view
+    setTimeout(() => {
+      const cur = document.querySelector('.sidebar-ep.current');
+      if (cur) cur.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 400);
+
+    // Prev/Next
+    let nav = '';
+    if (series) nav += `<a href="series-detail.html?id=${encodeURIComponent(serId)}" class="btn btn-ghost btn-sm">📺 قائمة الحلقات</a>`;
+    if (idx > 0) nav = `<a href="watch.html?episode=${encodeURIComponent(eps[idx-1].id)}&series=${encodeURIComponent(serId)}" class="btn btn-ghost btn-sm">‹ الحلقة السابقة</a>` + nav;
+    if (idx < eps.length-1) nav += `<a href="watch.html?episode=${encodeURIComponent(eps[idx+1].id)}&series=${encodeURIComponent(serId)}" class="btn btn-primary btn-sm">الحلقة التالية ›</a>`;
+    document.getElementById('pNav').innerHTML = nav;
   }
 }
 
-if (filmId)    loadFilm(filmId);
+if (filmId)       loadFilm(filmId);
 else if (episodeId) loadEpisode(episodeId, seriesId);
-else document.getElementById('playerTitle').textContent = 'لم يتم تحديد المحتوى';
+else document.getElementById('pTitle').textContent = 'لم يتم تحديد المحتوى';
 </script>
 </body>
 </html>

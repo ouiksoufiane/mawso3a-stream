@@ -47,7 +47,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer MAWSO3A_N8N_SECRET" },
+            { "name": "Authorization", "value": "Bearer wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=" },
             { "name": "Content-Type",  "value": "application/json" }
           ]
         },

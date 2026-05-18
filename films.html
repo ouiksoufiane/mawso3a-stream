@@ -7,48 +7,53 @@
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
-
-<nav class="nav solid" id="mainNav">
+<nav class="nav solid">
   <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
   <div class="nav-links">
     <a href="index.html"  class="nav-link">الرئيسية</a>
     <a href="series.html" class="nav-link">المسلسلات</a>
     <a href="films.html"  class="nav-link active">الأفلام</a>
-    <a href="search.html" class="nav-link keep nav-search-btn" title="بحث">🔍</a>
   </div>
+  <div class="nav-right"><a href="search.html" class="nav-icon-btn keep">🔍</a></div>
 </nav>
 
-<div class="page-top">
+<div class="page-hero">
   <div class="page-title">🎬 الأفلام</div>
   <div class="page-sub" id="pageCount">جاري التحميل…</div>
 </div>
 
-<div class="filters-bar">
+<div class="filters-wrap">
   <div class="filter-group">
-    <span class="filter-label">الأصل:</span>
-    <button class="filter-btn on" data-filter="origin" data-val="">الكل</button>
-    <button class="filter-btn" data-filter="origin" data-val="turkish">🇹🇷 تركي</button>
-    <button class="filter-btn" data-filter="origin" data-val="indian">🇮🇳 هندي</button>
-    <button class="filter-btn" data-filter="origin" data-val="korean">🇰🇷 كوري</button>
-    <button class="filter-btn" data-filter="origin" data-val="american">🇺🇸 أمريكي</button>
-    <button class="filter-btn" data-filter="origin" data-val="moroccan">🇲🇦 مغربي</button>
+    <span class="filter-label">الأصل</span>
+    <button class="filter-btn on" data-k="origin" data-v="">الكل</button>
+    <button class="filter-btn" data-k="origin" data-v="turkish">🇹🇷 تركي</button>
+    <button class="filter-btn" data-k="origin" data-v="indian">🇮🇳 هندي</button>
+    <button class="filter-btn" data-k="origin" data-v="korean">🇰🇷 كوري</button>
+    <button class="filter-btn" data-k="origin" data-v="american">🇺🇸 أمريكي</button>
+    <button class="filter-btn" data-k="origin" data-v="moroccan">🇲🇦 مغربي</button>
   </div>
   <div class="filter-group">
-    <span class="filter-label">اللغة:</span>
-    <button class="filter-btn on" data-filter="language" data-val="">الكل</button>
-    <button class="filter-btn" data-filter="language" data-val="ar_dubbed">عربي مدبلج</button>
-    <button class="filter-btn" data-filter="language" data-val="darija">🇲🇦 دارجة</button>
-    <button class="filter-btn" data-filter="language" data-val="fr_dubbed">فرنسي</button>
+    <span class="filter-label">اللغة</span>
+    <button class="filter-btn on" data-k="language" data-v="">الكل</button>
+    <button class="filter-btn" data-k="language" data-v="ar_dubbed">عربي مدبلج</button>
+    <button class="filter-btn" data-k="language" data-v="darija">🇲🇦 دارجة</button>
+    <button class="filter-btn" data-k="language" data-v="fr_dubbed">🇫🇷 فرنسي</button>
   </div>
   <div class="filter-group">
-    <span class="filter-label">التصنيف:</span>
-    <button class="filter-btn on" data-filter="category" data-val="">الكل</button>
-    <button class="filter-btn" data-filter="category" data-val="drama">دراما</button>
-    <button class="filter-btn" data-filter="category" data-val="action">أكشن</button>
-    <button class="filter-btn" data-filter="category" data-val="comedy">كوميدي</button>
-    <button class="filter-btn" data-filter="category" data-val="horror">رعب</button>
-    <button class="filter-btn" data-filter="category" data-val="romance">رومانسي</button>
+    <span class="filter-label">التصنيف</span>
+    <button class="filter-btn on" data-k="category" data-v="">الكل</button>
+    <button class="filter-btn" data-k="category" data-v="drama">دراما</button>
+    <button class="filter-btn" data-k="category" data-v="action">أكشن</button>
+    <button class="filter-btn" data-k="category" data-v="comedy">كوميدي</button>
+    <button class="filter-btn" data-k="category" data-v="horror">رعب</button>
+    <button class="filter-btn" data-k="category" data-v="romance">رومانسي</button>
   </div>
+  <select class="sort-select" id="sortSel">
+    <option value="created_at.desc">الأحدث إضافةً</option>
+    <option value="view_count.desc">الأكثر مشاهدةً</option>
+    <option value="year.desc">الأحدث إنتاجاً</option>
+    <option value="title_ar.asc">أبجدي</option>
+  </select>
 </div>
 
 <div class="content-grid" id="grid"></div>
@@ -60,102 +65,46 @@
 
 <script type="module">
 import { getContent, countContent } from './js/api.js';
+import { gridCardHTML, skeletonGrid } from './js/utils.js';
 
-const PER_PAGE = 24;
-let state = { origin: '', language: '', category: '', page: 0, total: 0 };
+const PER = 30;
+let S = { origin:'', language:'', category:'', order:'created_at.desc', page:0 };
 
-// Read URL params
 const sp = new URLSearchParams(location.search);
-if (sp.get('origin'))   state.origin   = sp.get('origin');
-if (sp.get('language')) state.language = sp.get('language');
-if (sp.get('category')) state.category = sp.get('category');
+['origin','language','category'].forEach(k => { if (sp.get(k)) S[k] = sp.get(k); });
 
-// Sync filter buttons with state
-function syncFilters() {
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    const key = btn.dataset.filter;
-    btn.classList.toggle('on', btn.dataset.val === state[key]);
-  });
+function sync() {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('on', b.dataset.v === S[b.dataset.k]));
 }
-
-// Filter click
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    state[btn.dataset.filter] = btn.dataset.val;
-    state.page = 0;
-    syncFilters();
-    load();
-  });
-});
-
-function originLabel(o) {
-  const m = { turkish:'🇹🇷 تركي', indian:'🇮🇳 هندي', korean:'🇰🇷 كوري', american:'🇺🇸 أمريكي', moroccan:'🇲🇦 مغربي' };
-  const c = { turkish:'b-tr', indian:'b-in', korean:'b-ko', american:'b-us', moroccan:'b-ma' };
-  return `<span class="badge ${c[o]||'b-ar'}">${m[o]||o}</span>`;
-}
-function langLabel(l) {
-  const m = { darija:'🇲🇦 دارجة', ar_dubbed:'عربي مدبلج', fr_dubbed:'فرنسي' };
-  return `<span class="badge b-ar">${m[l]||l}</span>`;
-}
-function catLabel(c) {
-  const m = { drama:'دراما', action:'أكشن', comedy:'كوميدي', horror:'رعب', romance:'رومانسي', 'sci-fi':'خيال علمي', animation:'أنيماشن' };
-  return m[c] ? `<span class="badge b-dr">${m[c]}</span>` : '';
-}
-
-function renderGrid(items) {
-  const g = document.getElementById('grid');
-  if (!items.length) {
-    g.innerHTML = `<div class="empty"><div class="empty-icon">🎬</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب تصفية أخرى أو انتظر الإضافة التلقائية</div></div>`;
-    return;
-  }
-  g.innerHTML = items.map(item => {
-    const thumb = item.poster_url
-      ? `<img class="g-thumb" src="${item.poster_url}" alt="${item.title_ar}" loading="lazy"/>`
-      : `<div class="g-thumb-ph">🎬</div>`;
-    return `<a href="watch.html?id=${encodeURIComponent(item.id)}" class="grid-card">
-      ${thumb}
-      <div class="g-body">
-        <div class="g-title">${item.title_ar}</div>
-        <div class="g-badges">${originLabel(item.origin)}${langLabel(item.language)}${catLabel(item.category)}</div>
-      </div>
-    </a>`;
-  }).join('');
-}
-
-function renderSkeleton() {
-  document.getElementById('grid').innerHTML = Array.from({length:24},()=>`
-    <div class="skel"><div class="skel-thumb"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div></div>`).join('');
-}
-
-function renderPager(total, page) {
-  const pages = Math.ceil(total / PER_PAGE);
-  const el = document.getElementById('pager');
-  if (pages <= 1) { el.innerHTML=''; return; }
-  const start = Math.max(0, page-2), end = Math.min(pages-1, page+2);
-  let html = '';
-  if (page > 0) html += `<button class="pg-btn" data-p="${page-1}">‹</button>`;
-  for (let i=start; i<=end; i++) {
-    html += `<button class="pg-btn ${i===page?'on':''}" data-p="${i}">${i+1}</button>`;
-  }
-  if (page < pages-1) html += `<button class="pg-btn" data-p="${page+1}">›</button>`;
-  el.innerHTML = html;
-  el.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => { state.page = +b.dataset.p; load(); window.scrollTo(0,0); }));
-}
+document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', () => { S[b.dataset.k] = b.dataset.v; S.page=0; sync(); load(); }));
+document.getElementById('sortSel').addEventListener('change', e => { S.order = e.target.value; S.page=0; load(); });
 
 async function load() {
-  renderSkeleton();
-  const [items, total] = await Promise.all([
-    getContent({ type:'film', origin: state.origin||undefined, language: state.language||undefined, category: state.category||undefined, limit: PER_PAGE, offset: state.page * PER_PAGE }),
-    countContent({ type:'film', origin: state.origin||undefined, language: state.language||undefined, category: state.category||undefined })
-  ]);
-  state.total = total;
+  document.getElementById('grid').innerHTML = skeletonGrid(30);
+  const params = { type:'film', limit:PER, offset:S.page*PER, order:S.order };
+  if (S.origin)   params.origin   = S.origin;
+  if (S.language) params.language = S.language;
+  if (S.category) params.category = S.category;
+  const [items, total] = await Promise.all([getContent(params), countContent({type:'film',...(S.origin&&{origin:S.origin}), ...(S.language&&{language:S.language}), ...(S.category&&{category:S.category})})]);
   document.getElementById('pageCount').textContent = `${total.toLocaleString('ar')} فيلم`;
-  renderGrid(items);
-  renderPager(total, state.page);
+  if (!items.length) {
+    document.getElementById('grid').innerHTML = `<div class="empty"><div class="empty-icon">🎬</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب تصفية أخرى أو انتظر الإضافة التلقائية</div></div>`;
+  } else {
+    document.getElementById('grid').innerHTML = items.map(gridCardHTML).join('');
+  }
+  // Pager
+  const pages = Math.ceil(total/PER);
+  const pg = document.getElementById('pager');
+  if (pages<=1){pg.innerHTML='';return;}
+  const s=Math.max(0,S.page-2), e=Math.min(pages-1,S.page+2);
+  let h = S.page>0?`<button class="pg-btn" data-p="${S.page-1}">‹ السابق</button>`:'';
+  for(let i=s;i<=e;i++) h+=`<button class="pg-btn ${i===S.page?'on':''}" data-p="${i}">${i+1}</button>`;
+  if(S.page<pages-1) h+=`<button class="pg-btn" data-p="${S.page+1}">التالي ›</button>`;
+  pg.innerHTML=h;
+  pg.querySelectorAll('.pg-btn').forEach(b=>b.addEventListener('click',()=>{S.page=+b.dataset.p;load();window.scrollTo({top:0,behavior:'smooth'});}));
 }
 
-syncFilters();
-load();
+sync(); load();
 </script>
 </body>
 </html>
