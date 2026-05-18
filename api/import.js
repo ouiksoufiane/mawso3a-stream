@@ -2,8 +2,7 @@ const SB_URL = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
 
 const ALLOWED_ORIGINS = new Set([
   'https://mawso3a-stream.vercel.app',
-  'https://mawso3a-stream-chi.vercel.app',
-  'https://mawso3a-stream-vincent-niards-projects.vercel.app'
+  'https://mawso3a-stream-chi.vercel.app'
 ]);
 
 async function sb(method, path, body, serviceKey) {
@@ -39,7 +38,7 @@ async function sbRpc(fn, args, serviceKey) {
 function detectOrigin(title) {
   const t = (title || '').toLowerCase();
   if (/تركي|türk|turkish|تركية|إسطنبول|اسطنبول|istanbul|أناضول|aşk|safir|hatasız/.test(t)) return 'turkish';
-  if (/هندي|hindi|bollywood|بوليوود|هندية|هندى|kareena|kapoor|aamir|salman|shahrukh|deepika|hrithik|baahubali|bajrangi|أميتاب|شاروخان/.test(t)) return 'indian';
+  if (/هندي|hindi|bollywood|بوليوود|هندية|هندى|kareena|kapoor|aamir|salman|shahrukh|deepika|hrithik|baahubali|أميتاب|شاروخان/.test(t)) return 'indian';
   if (/كوري|korean|كورية|k-drama|kdrama|أسطورة البحر الأزرق/.test(t)) return 'korean';
   if (/أمريكي|american|هوليوود|hollywood|أمريكية|vin diesel|فين ديزل|رامبو|rambo/.test(t)) return 'american';
   if (/مغربي|مغرب|maroc|darija|دارجة|مغربية|برامج رمضان/.test(t)) return 'moroccan';
@@ -79,13 +78,49 @@ function cleanTitle(title) {
 
 function isTrailerOrShort(title, durationSec) {
   const t = (title || '').toLowerCase();
-  if (durationSec && durationSec < 600) return true; // < 10 min
+  if (durationSec && durationSec < 600) return true;
   if (/trailer|teaser|clip|بروموشن|إعلان|promo|preview|teasar/.test(t)) return true;
   return false;
 }
 
+// Extract the series name from an episode title
+function extractSeriesName(title) {
+  return (title || '')
+    .replace(/\s*(الحلقة|حلقة|ح\.?|ep\.?|episode)\s*\d+.*/gi, '')
+    .replace(/\s*(الموسم|سيزون|season|الجزء|جزء|part)\s*\d+.*/gi, '')
+    .replace(/\s*\d+\s*$/, '')
+    .replace(/\s*(hd|4k|fhd|1080p|720p|مدبلج|مترجم|كامل|مكتمل|dubbed|sub|vf)\s*/gi, '')
+    .replace(/\s*(trailer|teaser|clip|إعلان|بروموشن)\s*/gi, '')
+    .replace(/\s*\|.*$/, '')
+    .replace(/\s*[-–—]\s*(?:مدبلج|dubbed|sub|vf|hd|4k).*$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 150);
+}
+
+// Stable series slug: Arabic-safe + short hash to avoid collisions
+function slugifySeries(name) {
+  let h = 5381;
+  for (let i = 0; i < name.length; i++) h = (h * 33 ^ name.charCodeAt(i)) >>> 0;
+  const safe = name.replace(/\s+/g, '_').replace(/[^؀-ۿa-zA-Z0-9_]/g, '').slice(0, 35);
+  return `${safe}_${h.toString(36).slice(0, 5)}`;
+}
+
+// Extract episode number from title
+function extractEpisodeNumber(title) {
+  const t = title || '';
+  const m = t.match(/(?:الحلقة|حلقة|ح|ep\.?|episode)\s*(\d+)/i);
+  return m ? parseInt(m[1]) : null;
+}
+
+// Extract season number from title
+function extractSeasonNumber(title) {
+  const t = title || '';
+  const m = t.match(/(?:الموسم|سيزون|season|الجزء|جزء|part)\s*(\d+)/i);
+  return m ? parseInt(m[1]) : 1;
+}
+
 export default async function handler(req, res) {
-  // CORS — restrict to known origins (allow null for local/admin)
   const origin = req.headers['origin'] || '';
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -112,7 +147,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       env: { youtube: !!YOUTUBE_API_KEY, supabase: !!SUPABASE_SERVICE },
-      version: '2.0'
+      version: '3.0'
     });
   }
 
@@ -185,12 +220,13 @@ export default async function handler(req, res) {
       duration_sec: duration_sec || null,
       description:  (description || '').slice(0, 1000) || null,
       embeddable:   embeddable !== false,
-      status:       'active'
+      status:       'active',
+      quality_score: 0
     }, SUPABASE_SERVICE);
     return res.json({ ok: r.ok, id, status: r.status });
   }
 
-  // ── IMPORT SERIES ─────────────────────────────────
+  // ── IMPORT SERIES (manual, explicit id) ───────────
   if (req.method === 'POST' && action === 'import-series') {
     let { id, title_ar, title_orig, origin, language, category, total_eps, poster_url, description, year } = req.body || {};
     if (!id || !title_ar) return res.status(400).json({ error: 'id and title_ar required' });
@@ -208,27 +244,86 @@ export default async function handler(req, res) {
       poster_url:  poster_url || null,
       description: (description || '').slice(0, 1000) || null,
       year:        year || null,
-      status:      'active'
+      status:      'active',
+      quality_score: 0
     }, SUPABASE_SERVICE);
     return res.json({ ok: r.ok, id, status: r.status });
   }
 
-  // ── IMPORT EPISODE ────────────────────────────────
+  // ── SMART IMPORT EPISODE (auto group by series name) ──
+  if (req.method === 'POST' && action === 'smart-import-episode') {
+    const { ytId, raw_title, series_title, title, season: rawSeason, episode: rawEp, duration_sec, embeddable, source, poster_url } = req.body || {};
+    const rawT = raw_title || title || '';
+    if (!ytId || !rawT) return res.status(400).json({ error: 'ytId and raw_title (or title) required' });
+
+    // Use explicit series_title if provided, else extract from raw_title
+    const seriesName = (series_title && series_title.trim().length >= 2)
+      ? series_title.trim().slice(0, 150)
+      : extractSeriesName(rawT);
+    if (!seriesName) return res.status(400).json({ error: 'Could not determine series name' });
+
+    const slug = slugifySeries(seriesName);
+    const series_id = `series_${slug}`;
+    const season = rawSeason || extractSeasonNumber(rawT);
+    const episode = rawEp || extractEpisodeNumber(rawT);
+
+    // Check if series exists, create if not
+    const checkRes = await sb('GET', `content?id=eq.${encodeURIComponent(series_id)}&select=id`, null, SUPABASE_SERVICE);
+    const exists = Array.isArray(checkRes.data) && checkRes.data.length > 0;
+
+    if (!exists) {
+      await sb('POST', 'content', {
+        id: series_id,
+        type: 'series',
+        title_ar: seriesName,
+        origin:   detectOrigin(rawT),
+        language: detectLanguage(rawT),
+        category: detectCategory(rawT),
+        poster_url: poster_url || `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`,
+        avail_eps: 0,
+        total_eps: 0,
+        status: 'active',
+        quality_score: 0
+      }, SUPABASE_SERVICE);
+    }
+
+    // Insert episode (ignore duplicate by yt_id)
+    const epId = `ep_${ytId}`;
+    const r = await sb('POST', 'episodes', {
+      id: epId,
+      content_id:   series_id,
+      yt_id:        ytId,
+      title_ar:     cleanTitle(rawT),
+      season:       season,
+      episode:      episode,
+      duration_sec: duration_sec || null,
+      embeddable:   embeddable !== false,
+      source:       source || 'youtube'
+    }, SUPABASE_SERVICE);
+
+    if (r.ok) {
+      await sbRpc('refresh_avail_eps', { p_content_id: series_id }, SUPABASE_SERVICE).catch(() => {});
+    }
+
+    return res.json({ ok: r.ok, series_id, episode_id: epId, series_name: seriesName, season, episode });
+  }
+
+  // ── IMPORT EPISODE (legacy, explicit series_id) ───
   if (req.method === 'POST' && action === 'import-episode') {
     const { ytId, series_id, title_ar, season = 1, episode, duration_sec, embeddable, source } = req.body || {};
     if (!ytId || !series_id) return res.status(400).json({ error: 'ytId and series_id required' });
     const id = `ep_${ytId}`;
     const r = await sb('POST', 'episodes', {
       id, content_id: series_id, yt_id: ytId,
-      title_ar:    title_ar || null,
-      season:      season || 1,
-      episode:     episode || null,
+      title_ar:     title_ar || null,
+      season:       season || 1,
+      episode:      episode || null,
       duration_sec: duration_sec || null,
-      embeddable:  embeddable !== false,
-      source:      source || null
+      embeddable:   embeddable !== false,
+      source:       source || null
     }, SUPABASE_SERVICE);
     if (r.ok) {
-      await sbRpc('increment_avail_eps', { p_content_id: series_id }, SUPABASE_SERVICE).catch(() => {});
+      await sbRpc('refresh_avail_eps', { p_content_id: series_id }, SUPABASE_SERVICE).catch(() => {});
     }
     return res.json({ ok: r.ok, id, status: r.status });
   }
@@ -239,23 +334,24 @@ export default async function handler(req, res) {
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items[] required' });
 
     let imported = 0, skipped = 0, errors = 0;
-    for (const item of items.slice(0, 100)) { // cap at 100 per call
+    for (const item of items.slice(0, 100)) {
       try {
         if (!item.ytId) { errors++; continue; }
         const id = `film_${item.ytId}`;
         const title = cleanTitle(item.title_ar || item.title || item.ytId);
         const r = await sb('POST', 'content', {
           id, type: 'film', title_ar: title,
-          origin:      item.origin   || detectOrigin(title),
-          language:    item.language || detectLanguage(title),
-          category:    item.category || detectCategory(title),
-          yt_id:       item.ytId,
-          poster_url:  item.poster_url || `https://img.youtube.com/vi/${item.ytId}/mqdefault.jpg`,
-          year:        item.year        || null,
+          origin:       item.origin   || detectOrigin(title),
+          language:     item.language || detectLanguage(title),
+          category:     item.category || detectCategory(title),
+          yt_id:        item.ytId,
+          poster_url:   item.poster_url || `https://img.youtube.com/vi/${item.ytId}/mqdefault.jpg`,
+          year:         item.year        || null,
           duration_sec: item.duration_sec || null,
-          description: (item.description || '').slice(0, 1000) || null,
-          embeddable:  item.embeddable !== false,
-          status:      'active'
+          description:  (item.description || '').slice(0, 1000) || null,
+          embeddable:   item.embeddable !== false,
+          status:       'active',
+          quality_score: 0
         }, SUPABASE_SERVICE);
         r.status === 409 ? skipped++ : r.ok ? imported++ : errors++;
       } catch { errors++; }
@@ -287,7 +383,6 @@ export default async function handler(req, res) {
 
     const dead = results.filter(r => r.status === 'fulfilled' && !r.value.alive).map(r => r.value.ytId);
 
-    // Auto-mark dead content as hidden if requested
     if (req.body.auto_hide && dead.length) {
       for (const ytId of dead) {
         await sb('PATCH', `content?yt_id=eq.${encodeURIComponent(ytId)}&status=eq.active`,

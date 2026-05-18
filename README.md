@@ -75,7 +75,7 @@ Dans **n8n > Settings > Variables** :
 | Variable | Valeur |
 |---|---|
 | `N8N_SECRET` | Même valeur que Vercel |
-| `SUPABASE_ANON_KEY` | `sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az` |
+| `SUPABASE_ANON_KEY` | Clé JWT anon — Supabase Dashboard > Settings > API > `anon public` |
 | `SUPABASE_SERVICE_KEY` | Clé service Supabase |
 | `TMDB_API_KEY` | Optionnel |
 
@@ -125,11 +125,14 @@ Tous les endpoints sauf `report-dead-link` et `request-content` requièrent `Aut
 | `POST /api/import?action=search-youtube` | POST | Chercher sur YouTube |
 | `POST /api/import?action=import-film` | POST | Importer un film |
 | `POST /api/import?action=import-series` | POST | Créer une série |
-| `POST /api/import?action=import-episode` | POST | Ajouter un épisode |
+| `POST /api/import?action=import-episode` | POST | Ajouter un épisode (ID série requis) |
+| `POST /api/import?action=smart-import-episode` | POST | Import épisode avec détection série automatique |
 | `POST /api/import?action=import-batch` | POST | Import batch (max 100) |
 | `POST /api/import?action=verify` | POST | Vérifier des liens YouTube |
-| `POST /api/report-dead-link` | POST | Signaler lien mort (public) |
+| `POST /api/refresh-metadata` | POST | Rafraîchir métadonnées YouTube/TMDB |
+| `POST /api/report-dead-link` | POST | Signaler lien mort — auto-masqué après 3 signalements (public) |
 | `POST /api/request-content` | POST | Demander du contenu (public) |
+| `GET /sitemap.xml` | GET | Sitemap XML dynamique (rewrite → `/api/sitemap`) |
 | `GET /api/admin/moderate?action=list-pending` | GET | Lister pending |
 | `POST /api/admin/moderate?action=approve` | POST | Approuver contenu |
 | `POST /api/admin/moderate?action=hide` | POST | Masquer contenu |
@@ -153,12 +156,13 @@ Tous les endpoints sauf `report-dead-link` et `request-content` requièrent `Aut
 
 ## Architecture de sécurité
 
-- **Frontend** : utilise la clé anon Supabase (intentionnellement publique) — RLS limite à `status = 'active'`
-- **Backend API** : utilise la service role key (variable d'env uniquement)
-- **Admin** : protégé par `N8N_SECRET` Bearer token
-- **RLS** : anonymes = lecture seule sur contenu actif ; service_role = tout
-- **XSS** : toutes les valeurs HTML échappées via `esc()` dans utils.js
-- **CORS** : restreint aux domaines Vercel du projet
+- **Frontend** : utilise la clé anon Supabase (intentionnellement publique) — RLS `USING (status = 'active')` : seul le contenu actif est exposé
+- **Backend API** : utilise la service role key (variable d'env uniquement, jamais dans le frontend)
+- **Admin** : toutes les mutations passent par `/api/admin/moderate` avec `Authorization: Bearer <N8N_SECRET>`
+- **RLS** : `anon` = SELECT WHERE `status = 'active'` uniquement ; épisodes accessibles seulement si la série parente est active ; `service_role` = accès total
+- **XSS** : toutes les valeurs HTML échappées via `esc()` (admin.html inline + utils.js)
+- **CORS** : restreint au domaine Vercel du projet uniquement
+- **Dead links** : `POST /api/report-dead-link` appelle la fonction SQL `report_dead_link()` — atomique, incrémente le compteur, masque auto après 3 signalements
 
 ---
 
@@ -179,12 +183,27 @@ Tous les endpoints sauf `report-dead-link` et `request-content` requièrent `Aut
 
 ## Prochaines améliorations
 
-- [ ] Exécuter `schema.sql` dans Supabase (tables `dead_links`, `content_requests`, `admin_actions`, RPCs)
+- [x] Exécuter `schema.sql` dans Supabase (tables + RPCs)
+- [x] Sitemap XML dynamique — `GET /sitemap.xml` → `/api/sitemap` (rewrite Vercel)
+- [x] Endpoint `report-dead-link` atomique via RPC SQL — auto-masquage après 3 signalements
 - [ ] Configurer `YOUTUBE_API_KEY` dans Vercel pour activer les workflows n8n
 - [ ] Activer workflow 04 avec `TMDB_API_KEY` pour les posters manquants
-- [ ] Ajouter Sitemap XML dynamique (`/api/sitemap.xml`)
 - [ ] Authentification admin complète (Supabase Auth)
-- [ ] Support Vimeo / Dailymotion / Archive.org comme sources alternatives
+- [ ] Support multi-sources (Dailymotion, Archive.org, Vimeo) — infrastructure prête dans la table `sources` du schéma ; workflows n8n à étendre
 - [ ] Notifications push pour nouveaux épisodes (Web Push API)
 - [ ] PWA (manifest.json + service worker)
 - [ ] Page catégories dédiées (Top Maroc, Turc, Coréen, etc.)
+
+---
+
+## Sources de contenu
+
+La table `sources` du schéma est prête pour gérer plusieurs plateformes. Actuellement seul YouTube est utilisé.
+
+| Plateforme | Statut | Type | Notes |
+|---|---|---|---|
+| YouTube | ✅ Actif | chaînes / playlists / recherche | Workflows 01, 02, 07 |
+| TMDB | ⚙️ Optionnel | enrichissement métadonnées | Workflow 04, endpoint `/api/refresh-metadata` |
+| Dailymotion | 🔜 Prévu | embed | Structure `sources` prête, workflow à créer |
+| Archive.org | 🔜 Prévu | films domaine public | Structure `sources` prête, workflow à créer |
+| Vimeo | 🔜 Prévu | embed | Structure `sources` prête, workflow à créer |

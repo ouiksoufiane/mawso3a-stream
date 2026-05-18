@@ -2,8 +2,7 @@ const SB_URL = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
 
 const ALLOWED_ORIGINS = new Set([
   'https://mawso3a-stream.vercel.app',
-  'https://mawso3a-stream-chi.vercel.app',
-  'https://mawso3a-stream-vincent-niards-projects.vercel.app'
+  'https://mawso3a-stream-chi.vercel.app'
 ]);
 
 async function sb(method, path, body, serviceKey) {
@@ -43,6 +42,25 @@ export default async function handler(req, res) {
   }
 
   const action = req.query.action || (req.body && req.body.action);
+
+  // ── LIST all content (admin view, any status) ────
+  if (req.method === 'GET' && action === 'list-content') {
+    const { type, origin, status, search, limit = 20, offset = 0 } = req.query;
+    let path = `content?order=created_at.desc&limit=${Math.min(+limit||20,100)}&offset=${+offset||0}&select=id,type,title_ar,origin,language,status,view_count,poster_url,yt_id,created_at,avail_eps`;
+    if (status) path += `&status=eq.${encodeURIComponent(status)}`;
+    if (type)   path += `&type=eq.${encodeURIComponent(type)}`;
+    if (origin) path += `&origin=eq.${encodeURIComponent(origin)}`;
+    if (search) path += `&title_ar=ilike.*${encodeURIComponent(search)}*`;
+    const r = await sb('GET', path, null, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok, items: r.data || [] });
+  }
+
+  // ── LIST discovery logs ───────────────────────────
+  if (req.method === 'GET' && action === 'list-logs') {
+    const { limit = 50 } = req.query;
+    const r = await sb('GET', `discovery_log?order=run_at.desc&limit=${Math.min(+limit||50,200)}`, null, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok, items: r.data || [] });
+  }
 
   // ── LIST pending content ──────────────────────────
   if (req.method === 'GET' && action === 'list-pending') {

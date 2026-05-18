@@ -280,7 +280,7 @@
 
 <script type="module">
 import { getStats, getFeatured, getByOrigin, getContent } from './js/api.js';
-import { cardHTML, skeletonRow, animateCounter, CW } from './js/utils.js';
+import { cardHTML, skeletonRow, animateCounter, CW, esc } from './js/utils.js';
 
 const nav = document.getElementById('nav');
 window.addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 80), { passive: true });
@@ -300,16 +300,18 @@ ALL_ROWS.forEach(id => {
 const cwItems = CW.getRecent(8);
 if (cwItems.length) {
   document.getElementById('cwSection').style.display = '';
-  document.getElementById('cwRow').innerHTML = cwItems.map(item => `
-    <a href="${item.href}" class="cw-card">
+  document.getElementById('cwRow').innerHTML = cwItems.map(item => {
+    const safeHref = /^(watch|series-detail)\.html\?/.test(item.href||'') ? item.href : '#';
+    return `<a href="${esc(safeHref)}" class="cw-card">
       <div class="cw-thumb-ph">▶</div>
-      <div class="cw-progress"><div class="cw-progress-fill" style="width:${item.progress||30}%"></div></div>
+      <div class="cw-progress"><div class="cw-progress-fill" style="width:${+(item.progress||30)||30}%"></div></div>
       <div class="cw-body">
-        <div class="cw-title">${item.title}</div>
-        <div class="cw-sub">${item.sub||''}</div>
+        <div class="cw-title">${esc(item.title)}</div>
+        <div class="cw-sub">${esc(item.sub||'')}</div>
       </div>
-      <button class="cw-remove" onclick="event.preventDefault();window.__removeCW('${item.id}',this.closest('.cw-card'))">✕</button>
-    </a>`).join('');
+      <button class="cw-remove" onclick="event.preventDefault();window.__removeCW('${esc(item.id)}',this.closest('.cw-card'))">✕</button>
+    </a>`;
+  }).join('');
 }
 window.__removeCW = function(id, el) {
   CW.remove(id); el.remove();
@@ -321,9 +323,9 @@ let heroItems = [], heroIdx = 0, heroTimer;
 function renderHero(item) {
   if (!item) return;
   const bg = document.getElementById('heroBg');
-  const href = item.type==='series' ? `series-detail.html?id=${item.id}` : `watch.html?id=${item.id}`;
+  const href = item.type==='series' ? `series-detail.html?id=${encodeURIComponent(item.id)}` : `watch.html?id=${encodeURIComponent(item.id)}`;
   if (item.poster_url) {
-    bg.style.backgroundImage = `url(${item.poster_url})`;
+    bg.style.backgroundImage = `url(${encodeURI(item.poster_url)})`;
     bg.classList.remove('hero-default-bg');
     bg.classList.add('hero-transition');
     setTimeout(() => bg.classList.remove('hero-transition'), 1000);
@@ -333,7 +335,7 @@ function renderHero(item) {
   const flag = flags[item.origin]||'🌍';
   const orig = origins[item.origin]||'';
   document.getElementById('heroEyebrow').textContent = `${item.type==='series'?'📺 مسلسل':'🎬 فيلم'} ${flag} ${orig}`;
-  document.getElementById('heroTitle').innerHTML = item.title_ar;
+  document.getElementById('heroTitle').textContent = item.title_ar || '';
   document.getElementById('heroDesc').textContent = item.description || (item.type==='series' ? `${item.avail_eps||''} حلقة متاحة` : '');
   document.getElementById('heroActions').innerHTML = `
     <a href="${href}" class="btn btn-primary">▶ مشاهدة الآن</a>

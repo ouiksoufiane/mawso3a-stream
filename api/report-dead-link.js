@@ -13,38 +13,21 @@ export default async function handler(req, res) {
   const { contentId, ytId } = req.body || {};
   if (!contentId && !ytId) return res.status(400).json({ error: 'contentId or ytId required' });
 
-  const headers = {
-    'apikey': SUPABASE_SERVICE,
-    'Authorization': `Bearer ${SUPABASE_SERVICE}`,
-    'Content-Type': 'application/json',
-    'Prefer': 'return=minimal,resolution=merge-duplicates'
-  };
-
-  // Upsert into dead_links
-  await fetch(`${SB_URL}/dead_links`, {
+  const rpcRes = await fetch(`${SB_URL}/rpc/report_dead_link`, {
     method: 'POST',
-    headers,
-    body: JSON.stringify({
-      content_id: contentId || null,
-      yt_id: ytId || null,
-      reports: 1
-    })
+    headers: {
+      'apikey': SUPABASE_SERVICE,
+      'Authorization': `Bearer ${SUPABASE_SERVICE}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ p_content_id: contentId || null, p_yt_id: ytId || null })
   });
 
-  // If 3+ reports, mark content hidden
-  const countRes = await fetch(`${SB_URL}/dead_links?content_id=eq.${encodeURIComponent(contentId||'')}&select=reports`, {
-    headers: { 'apikey': SUPABASE_SERVICE, 'Authorization': `Bearer ${SUPABASE_SERVICE}` }
-  });
-  const rows = await countRes.json().catch(() => []);
-  const totalReports = rows.reduce((s, r) => s + (r.reports||1), 0);
-
-  if (totalReports >= 3 && contentId) {
-    await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(contentId)}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ status: 'hidden' })
-    });
+  if (!rpcRes.ok) {
+    const err = await rpcRes.text().catch(() => '');
+    return res.status(500).json({ error: 'RPC failed', detail: err });
   }
 
-  return res.json({ ok: true, totalReports });
+  const reports = await rpcRes.json().catch(() => null);
+  return res.json({ ok: true, reports });
 }

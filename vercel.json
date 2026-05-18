@@ -4,6 +4,8 @@
     "api/status.js":              { "maxDuration": 10 },
     "api/report-dead-link.js":    { "maxDuration": 10 },
     "api/request-content.js":    { "maxDuration": 10 },
+    "api/refresh-metadata.js":    { "maxDuration": 30 },
+    "api/sitemap.js":             { "maxDuration": 15 },
     "api/admin/moderate.js":      { "maxDuration": 30 }
   },
   "headers": [
@@ -31,6 +33,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/404", "destination": "/404.html" }
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/404",         "destination": "/404.html" }
   ]
 }

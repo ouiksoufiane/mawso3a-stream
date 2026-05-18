@@ -194,11 +194,32 @@
 
 <script>
 const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
-const SB_ANON = 'sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhZGF6eHBvZml6cmZvY3pobWtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkwOTEyNTIsImV4cCI6MjA5NDY2NzI1Mn0.UxBR2R4pwB8_UMaQfKUmfR_v7NYuCJ_xSndAvE3IUR4'; // read-only stats only
 let TOKEN = '';
-let SVC   = '';
 const PER = 20;
 let contentPage = 0;
+
+/* ── XSS-safe escape ── */
+function esc(s) {
+  if (!s && s !== 0) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+/* ── Admin API helpers (all ops go through /api/admin/moderate) ── */
+async function moderate(action, body = {}) {
+  const res = await fetch(`/api/admin/moderate?action=${action}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json().catch(() => ({ ok: false }));
+}
+async function moderateGet(action, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = `/api/admin/moderate?action=${action}${qs ? '&' + qs : ''}`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+  return res.json().catch(() => ({ ok: false, items: [] }));
+}
 
 /* ── Auth ── */
 function checkAuth() {
@@ -207,7 +228,7 @@ function checkAuth() {
   fetch('/api/import?action=status', {
     headers: { 'Authorization': `Bearer ${val}` }
   }).then(r => r.json()).then(d => {
-    if (d.status === 'ok') {
+    if (d.ok === true) {
       document.getElementById('authScreen').style.display = 'none';
       document.getElementById('adminApp').style.display   = 'block';
       sessionStorage.setItem('admin_token', val);
@@ -240,14 +261,7 @@ function showSection(name) {
   if (name === 'logs')    loadLogs();
 }
 
-/* ── Supabase helper ── */
-async function sb(path, opts = {}) {
-  const r = await fetch(`${SB_URL}/${path}`, {
-    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Accept': 'application/json' },
-    ...opts
-  });
-  return r.json();
-}
+/* ── Supabase anon counter (active content only, for stats) ── */
 async function sbCount(path) {
   const r = await fetch(`${SB_URL}/${path}`, {
     headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Prefer': 'count=exact', 'Range': '0-0' }
@@ -282,13 +296,13 @@ async function loadStats() {
     </div>`).join('');
 
   // Logs
-  const logs = await sb('discovery_log?order=run_at.desc&limit=5');
+  const { items: logs = [] } = await moderateGet('list-logs', { limit: 5 });
   document.getElementById('recentLogs').innerHTML = `
     <table class="admin-table">
       <thead><tr><th>التاريخ</th><th>الاستعلام</th><th>وُجد</th><th>مُستورد</th><th>تخطي</th></tr></thead>
-      <tbody>${(Array.isArray(logs)?logs:[]).map(l=>`<tr>
+      <tbody>${logs.map(l=>`<tr>
         <td style="font-size:12px;color:var(--text-muted)">${new Date(l.run_at).toLocaleString('ar')}</td>
-        <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.query||''}</td>
+        <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.query)}</td>
         <td><span class="badge b-ar">${l.found||0}</span></td>
         <td><span class="badge b-complete">${l.imported||0}</span></td>
         <td><span class="badge b-year">${l.skipped||0}</span></td>
@@ -303,98 +317,89 @@ async function loadContent() {
   const origin = document.getElementById('contentOriginF').value;
   const status = document.getElementById('contentStatusF').value;
 
-  let q = `content?order=created_at.desc&limit=${PER}&offset=${contentPage*PER}&select=*`;
-  if (status) q += `&status=eq.${status}`;
-  if (type)   q += `&type=eq.${type}`;
-  if (origin) q += `&origin=eq.${origin}`;
-  if (search) q += `&title_ar=ilike.*${encodeURIComponent(search)}*`;
-
-  const items = await sb(q);
-  document.getElementById('contentBody').innerHTML = (Array.isArray(items)?items:[]).map(item => `
+  const params = { limit: PER, offset: contentPage * PER };
+  if (status) params.status = status;
+  if (type)   params.type   = type;
+  if (origin) params.origin = origin;
+  if (search) params.search = search;
+  const { items = [] } = await moderateGet('list-content', params);
+  document.getElementById('contentBody').innerHTML = items.map(item => `
     <tr>
-      <td>${item.poster_url ? `<img src="${item.poster_url}" style="width:36px;aspect-ratio:2/3;object-fit:cover;border-radius:4px">` : '<span style="font-size:24px">${item.type==="series"?"📺":"🎬"}</span>'}</td>
+      <td>${item.poster_url ? `<img src="${esc(item.poster_url)}" style="width:36px;aspect-ratio:2/3;object-fit:cover;border-radius:4px">` : `<span style="font-size:24px">${item.type==='series'?'📺':'🎬'}</span>`}</td>
       <td style="max-width:220px">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title_ar||''}</div>
-        <div style="font-size:11px;color:var(--text-muted)">ID: ${item.id}</div>
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.title_ar)}</div>
+        <div style="font-size:11px;color:var(--text-muted)">ID: ${esc(item.id)}</div>
       </td>
       <td><span class="badge ${item.type==='film'?'b-film':'b-ser'}">${item.type==='film'?'فيلم':'مسلسل'}</span></td>
-      <td>${item.origin||''}</td>
+      <td>${esc(item.origin)}</td>
       <td style="font-size:12px;color:var(--text-dim)">${(item.view_count||0).toLocaleString('ar')}</td>
-      <td><span class="badge ${item.status==='active'?'b-complete':'b-dead'}">${item.status}</span></td>
+      <td><span class="badge ${item.status==='active'?'b-complete':'b-dead'}">${esc(item.status)}</span></td>
       <td style="display:flex;gap:6px;flex-wrap:wrap">
         <a href="${item.type==='film'?'watch.html?id=':'series-detail.html?id='}${encodeURIComponent(item.id)}" target="_blank" class="btn btn-ghost btn-xs">عرض</a>
         ${item.status==='active'
-          ? `<button onclick="hideContent('${item.id}')" class="btn btn-danger btn-xs">إخفاء</button>`
-          : `<button onclick="showContent('${item.id}')" class="btn btn-ghost btn-xs">تفعيل</button>`}
+          ? `<button onclick="hideContent('${esc(item.id)}')" class="btn btn-danger btn-xs">إخفاء</button>`
+          : `<button onclick="showContent('${esc(item.id)}')" class="btn btn-ghost btn-xs">تفعيل</button>`}
       </td>
     </tr>`).join('');
 }
 
 async function hideContent(id) {
   if (!confirm('هل تريد إخفاء هذا المحتوى؟')) return;
-  await apiCall('import', 'PATCH', { id, status: 'hidden' });
+  await moderate('hide', { id });
   loadContent();
 }
 async function showContent(id) {
-  await apiCall('import', 'PATCH', { id, status: 'active' });
+  await moderate('approve', { id });
   loadContent();
 }
 
 /* ── Pending ── */
 async function loadPending() {
-  const items = await sb('content?status=eq.pending&order=created_at.desc&limit=50&select=*').catch(()=>[]);
-  if (!Array.isArray(items) || !items.length) {
+  const { items = [] } = await moderateGet('list-pending', { limit: 50 });
+  if (!items.length) {
     document.getElementById('pendingList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا يوجد محتوى في الانتظار ✅</div>';
     return;
   }
   document.getElementById('pendingList').innerHTML = `<table class="admin-table">
     <thead><tr><th>العنوان</th><th>النوع</th><th>الأصل</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead>
-    <tbody>${items.map(item=>`<tr>
-      <td style="font-size:13px;font-weight:600">${item.title_ar||''}</td>
+    <tbody>${(items).map(item=>`<tr>
+      <td style="font-size:13px;font-weight:600">${esc(item.title_ar)}</td>
       <td><span class="badge ${item.type==='film'?'b-film':'b-ser'}">${item.type==='film'?'فيلم':'مسلسل'}</span></td>
-      <td>${item.origin||''}</td>
+      <td>${esc(item.origin)}</td>
       <td style="font-size:12px;color:var(--text-muted)">${new Date(item.created_at).toLocaleDateString('ar')}</td>
       <td style="display:flex;gap:6px">
-        <button onclick="approveContent('${item.id}')" class="btn btn-primary btn-xs">موافقة</button>
-        <button onclick="rejectContent('${item.id}')" class="btn btn-danger btn-xs">رفض</button>
+        <button onclick="approveContent('${esc(item.id)}')" class="btn btn-primary btn-xs">موافقة</button>
+        <button onclick="rejectContent('${esc(item.id)}')" class="btn btn-danger btn-xs">رفض</button>
       </td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 async function approveContent(id) {
-  await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ status: 'active' })
-  });
+  await moderate('approve', { id });
   loadPending();
 }
 async function rejectContent(id) {
-  if (!confirm('حذف هذا المحتوى نهائياً؟')) return;
-  await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ status: 'hidden' })
-  });
+  if (!confirm('إخفاء هذا المحتوى؟')) return;
+  await moderate('hide', { id });
   loadPending();
 }
 
 /* ── Dead links ── */
 async function loadDeadLinks() {
-  const rows = await sb('dead_links?order=last_report.desc&limit=50').catch(()=>[]);
-  if (!Array.isArray(rows) || !rows.length) {
+  const { items: rows = [] } = await moderateGet('list-dead');
+  if (!rows.length) {
     document.getElementById('deadList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا توجد إبلاغات حتى الآن ✅</div>';
     return;
   }
   document.getElementById('deadList').innerHTML = `<table class="admin-table">
     <thead><tr><th>المحتوى</th><th>YouTube ID</th><th>التقارير</th><th>آخر إبلاغ</th><th>الإجراء</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
-      <td style="font-size:12px">${r.content_id||'—'}</td>
-      <td><a href="https://youtube.com/watch?v=${r.yt_id||''}" target="_blank" style="color:var(--accent);font-size:12px">${r.yt_id||'—'}</a></td>
+      <td style="font-size:12px">${esc(r.content_id)||'—'}</td>
+      <td><a href="https://youtube.com/watch?v=${esc(r.yt_id||'')}" target="_blank" style="color:var(--accent);font-size:12px">${esc(r.yt_id)||'—'}</a></td>
       <td><span class="badge ${r.reports>=3?'b-dead':'b-year'}">${r.reports||1}</span></td>
       <td style="font-size:12px;color:var(--text-muted)">${new Date(r.last_report||r.created_at).toLocaleDateString('ar')}</td>
       <td>
-        ${r.content_id?`<button onclick="hideContent('${r.content_id}')" class="btn btn-danger btn-xs">إخفاء</button>`:''}
+        ${r.content_id?`<button onclick="hideContent('${esc(r.content_id)}')" class="btn btn-danger btn-xs">إخفاء</button>`:''}
       </td>
     </tr>`).join('')}</tbody>
   </table>`;
@@ -402,18 +407,18 @@ async function loadDeadLinks() {
 
 /* ── Requests ── */
 async function loadRequests() {
-  const rows = await sb('content_requests?order=created_at.desc&limit=50').catch(()=>[]);
-  if (!Array.isArray(rows) || !rows.length) {
+  const { items: rows = [] } = await moderateGet('list-requests');
+  if (!rows.length) {
     document.getElementById('requestsList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا توجد طلبات حتى الآن</div>';
     return;
   }
   document.getElementById('requestsList').innerHTML = `<table class="admin-table">
     <thead><tr><th>العنوان المطلوب</th><th>النوع</th><th>الأصل</th><th>ملاحظات</th><th>التاريخ</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
-      <td style="font-size:13px;font-weight:600">${r.title||''}</td>
+      <td style="font-size:13px;font-weight:600">${esc(r.title)}</td>
       <td><span class="badge ${r.type==='film'?'b-film':'b-ser'}">${r.type==='film'?'فيلم':'مسلسل'}</span></td>
-      <td style="font-size:12px">${r.origin||'—'}</td>
-      <td style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
+      <td style="font-size:12px">${esc(r.origin)||'—'}</td>
+      <td style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.notes)||'—'}</td>
       <td style="font-size:12px;color:var(--text-muted)">${new Date(r.created_at).toLocaleDateString('ar')}</td>
     </tr>`).join('')}</tbody>
   </table>`;
@@ -421,13 +426,13 @@ async function loadRequests() {
 
 /* ── Logs ── */
 async function loadLogs() {
-  const logs = await sb('discovery_log?order=run_at.desc&limit=50').catch(()=>[]);
-  document.getElementById('logsList').innerHTML = Array.isArray(logs) && logs.length ? `
+  const { items: logs = [] } = await moderateGet('list-logs', { limit: 50 });
+  document.getElementById('logsList').innerHTML = logs.length ? `
     <table class="admin-table">
       <thead><tr><th>التاريخ</th><th>الاستعلام</th><th>وُجد</th><th>مُستورد</th><th>تخطي</th></tr></thead>
       <tbody>${logs.map(l=>`<tr>
         <td style="font-size:12px;color:var(--text-muted)">${new Date(l.run_at).toLocaleString('ar')}</td>
-        <td style="font-size:12px">${l.query||''}</td>
+        <td style="font-size:12px">${esc(l.query)}</td>
         <td><span class="badge b-ar">${l.found||0}</span></td>
         <td><span class="badge b-complete">${l.imported||0}</span></td>
         <td><span class="badge b-year">${l.skipped||0}</span></td>
@@ -477,12 +482,12 @@ async function searchYT() {
   document.getElementById('ytSearchBtn').textContent = '🔍 بحث';
   document.getElementById('ytResults').innerHTML = (r.results||[]).map(item=>`
     <div style="display:flex;gap:10px;padding:10px;background:var(--card);border-radius:6px;align-items:center">
-      <img src="${item.poster_url||''}" style="width:48px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;background:var(--card2)">
+      <img src="${esc(item.poster_url||'')}" style="width:48px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;background:var(--card2)">
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title||''}</div>
-        <div style="font-size:11px;color:var(--text-muted)">${item.ytId} • ${item.duration_sec?Math.round(item.duration_sec/60)+'د':''}</div>
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.title||'')}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${esc(item.ytId)} • ${item.duration_sec?Math.round(item.duration_sec/60)+'د':''}</div>
       </div>
-      <button onclick="importYT('${item.ytId}','${encodeURIComponent(item.title_ar||item.title||'')}','${item.origin}','${item.language}','${item.year||''}','${item.poster_url||''}')" class="btn btn-primary btn-xs">استيراد</button>
+      <button onclick="importYT('${esc(item.ytId)}','${encodeURIComponent(item.title_ar||item.title||'')}','${esc(item.origin||'')}','${esc(item.language||'')}','${esc(item.year||'')}','${esc(item.poster_url||'')}')" class="btn btn-primary btn-xs">استيراد</button>
     </div>`).join('') || '<div style="color:var(--text-muted);font-size:13px">لا نتائج</div>';
 }
 
