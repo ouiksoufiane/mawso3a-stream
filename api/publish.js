@@ -160,7 +160,7 @@ export default async function handler(req, res) {
           const contentId = `${platform}_${c.platform_id}`;
           const defaultPoster = platform === 'archive'
             ? `https://archive.org/services/img/${c.platform_id}`
-            : `https://img.youtube.com/vi/${c.platform_id}/mqdefault.jpg`;
+            : `https://img.youtube.com/vi/${c.platform_id}/hqdefault.jpg`;
 
           const content = {
             id: contentId,
@@ -214,7 +214,7 @@ export default async function handler(req, res) {
             language: c.language || 'ar_dubbed',
             origin: c.origin || 'other',
             category: c.category || 'drama',
-            poster_url: c.poster_url || `https://img.youtube.com/vi/${c.platform_id}/mqdefault.jpg`,
+            poster_url: c.poster_url || `https://img.youtube.com/vi/${c.platform_id}/hqdefault.jpg`,
             yt_id: ytId,
             year: c.year || null,
             embeddable: true,
@@ -261,7 +261,7 @@ export default async function handler(req, res) {
           if (!Array.isArray(seriesCheck.data) || seriesCheck.data.length === 0) {
             const defaultPoster = platform === 'archive'
               ? `https://archive.org/services/img/${c.platform_id}`
-              : `https://img.youtube.com/vi/${c.platform_id}/mqdefault.jpg`;
+              : `https://img.youtube.com/vi/${c.platform_id}/hqdefault.jpg`;
             await sb('POST', 'content', {
               id: seriesId,
               type: 'series',

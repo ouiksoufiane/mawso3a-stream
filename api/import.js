@@ -211,7 +211,7 @@ export default async function handler(req, res) {
     const id = `film_${ytId}`;
     const defaultPoster = isArchive
       ? `https://archive.org/services/img/${ytId.slice(4)}`
-      : `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`;
+      : `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
     const r = await sb('POST', 'content', {
       id, type: 'film',
       title_ar:     cleanTitle(title_ar),
@@ -284,7 +284,7 @@ export default async function handler(req, res) {
         origin:   detectOrigin(rawT),
         language: detectLanguage(rawT),
         category: detectCategory(rawT),
-        poster_url: poster_url || `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`,
+        poster_url: poster_url || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
         avail_eps: 0,
         total_eps: 0,
         status: 'active',
@@ -350,7 +350,7 @@ export default async function handler(req, res) {
           language:     item.language || detectLanguage(title),
           category:     item.category || detectCategory(title),
           yt_id:        item.ytId,
-          poster_url:   item.poster_url || `https://img.youtube.com/vi/${item.ytId}/mqdefault.jpg`,
+          poster_url:   item.poster_url || `https://img.youtube.com/vi/${item.ytId}/hqdefault.jpg`,
           year:         item.year        || null,
           duration_sec: item.duration_sec || null,
           description:  (item.description || '').slice(0, 1000) || null,

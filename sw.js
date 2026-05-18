@@ -1,5 +1,5 @@
 // Service Worker — الموسوعة ستريم
-const CACHE = 'mawso3a-v3';
+const CACHE = 'mawso3a-v4';
 const STATIC = [
   '/',
   '/index.html',
@@ -35,8 +35,18 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Always network-first for API calls and Supabase
-  if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) {
+  // Always network-first for API calls, Supabase, and external images
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.hostname.includes('supabase') ||
+    url.hostname.includes('ytimg.com') ||
+    url.hostname.includes('youtube.com') ||
+    url.hostname.includes('dmcdn.net') ||
+    url.hostname.includes('vimeocdn.com') ||
+    url.hostname.includes('archive.org') ||
+    url.hostname.includes('tmdb.org') ||
+    url.hostname.includes('themoviedb.org')
+  ) {
     return;
   }
 

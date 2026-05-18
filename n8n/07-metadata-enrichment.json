@@ -28,7 +28,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst items = (data.items || []).filter(i => !i.poster_url || i.poster_url.includes('mqdefault'));\nreturn items.slice(0, 15).map(i => ({ json: i }));"
+        "jsCode": "const data = $input.first().json;\nconst items = (data.items || []).filter(i => !i.poster_url || i.poster_url.includes('hqdefault'));\nreturn items.slice(0, 15).map(i => ({ json: i }));"
       },
       "id": "meta-filter",
       "name": "Filter Needing Enrichment",
