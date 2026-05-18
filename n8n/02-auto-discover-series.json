@@ -5,21 +5,15 @@
       "parameters": {
         "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
       },
-      "id": "ms-02-01",
-      "name": "Every Day",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [240, 300]
+      "id": "ms-02-01", "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [240, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Search queries for series (episode 1 of each)\nconst queries = [\n  { query: 'مسلسل تركي مدبلج بالعربية الحلقة الأولى',   origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'مسلسل هندي مدبلج بالعربية الحلقة الأولى',   origin: 'indian',   language: 'ar_dubbed' },\n  { query: 'مسلسل كوري مدبلج بالعربية الحلقة 1',        origin: 'korean',   language: 'ar_dubbed' },\n  { query: 'مسلسل مغربي بالدارجة الحلقة الأولى',         origin: 'moroccan', language: 'darija'    },\n  { query: 'مسلسل تركي مدبلج 2024 حلقة 1',              origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'مسلسل هندي دراما مدبلج عربي الحلقة الأولى', origin: 'indian',   language: 'ar_dubbed' }\n];\nreturn queries.map(q => ({ json: q }));"
+        "jsCode": "const queries = [\n  { query: 'مسلسل تركي مدبلج بالعربية الحلقة 1',     origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'مسلسل هندي مدبلج بالعربية الحلقة 1',     origin: 'indian',   language: 'ar_dubbed' },\n  { query: 'مسلسل كوري مدبلج بالعربية الحلقة 1',     origin: 'korean',   language: 'ar_dubbed' },\n  { query: 'مسلسل صيني مدبلج بالعربية الحلقة 1',     origin: 'chinese',  language: 'ar_dubbed' },\n  { query: 'مسلسل مغربي بالدارجة الحلقة الأولى',     origin: 'moroccan', language: 'darija'    },\n  { query: 'مسلسل تركي رومانسي مدبلج حلقة 1 2024',   origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'مسلسل هندي دراما مدبلج عربي الحلقة 1',   origin: 'indian',   language: 'ar_dubbed' },\n  { query: 'مسلسل كوري رومانسي مدبلج عربي حلقة 1',  origin: 'korean',   language: 'ar_dubbed' }\n];\nreturn queries.map(q => ({ json: q }));"
       },
-      "id": "ms-02-02",
-      "name": "Generate Series Queries",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [460, 300]
+      "id": "ms-02-02", "name": "Generate Queries",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [460, 300]
     },
     {
       "parameters": {
@@ -28,52 +22,39 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "Bearer wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=" },
+            { "name": "Authorization", "value": "Bearer {{ $env.N8N_SECRET }}" },
             { "name": "Content-Type",  "value": "application/json" }
           ]
         },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json",
         "body": "={{ JSON.stringify({ query: $json.query, max: 15, content_type: 'series' }) }}",
         "options": { "timeout": 30000 }
       },
-      "id": "ms-02-03",
-      "name": "Search YouTube Series",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [680, 300]
+      "id": "ms-02-03", "name": "Search YouTube Series",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [680, 300]
     },
     {
       "parameters": {
-        "jsCode": "// For series discovery, we detect pilot episodes and create series metadata\nconst results = $input.first().json.results || [];\nconst query = $('Generate Series Queries').item.json;\n\n// Try to extract series name from episode title\nfunction extractSeriesName(title) {\n  // Remove episode indicators\n  return title\n    .replace(/الحلقة\\s*\\d+/g, '')\n    .replace(/حلقة\\s*\\d+/g, '')\n    .replace(/episode\\s*\\d+/gi, '')\n    .replace(/ep\\.?\\s*\\d+/gi, '')\n    .replace(/\\s{2,}/g, ' ')\n    .trim();\n}\n\nconst series = results\n  .filter(r => r.embeddable !== false)\n  .map(r => ({\n    ytId:      r.ytId,\n    title_ar:  extractSeriesName(r.title_ar || r.title),\n    title_orig: r.title,\n    origin:    r.origin !== 'other' ? r.origin : query.origin,\n    language:  r.language !== 'ar_dubbed' ? r.language : query.language,\n    category:  r.category,\n    poster_url: r.poster_url,\n    year:      r.year,\n    // For series: create a series ID based on cleaned title\n    series_id: 'series_' + r.ytId,\n    episode_yt_id: r.ytId,\n    query: query.query\n  }));\n\nconsole.log(`Series query: ${query.query} → ${series.length} results`);\nreturn [{ json: { series, query: query.query } }];"
+        "jsCode": "const results = $input.first().json.results || [];\nconst query = $('Generate Queries').item.json;\n\nfunction extractSeriesName(title) {\n  return title\n    .replace(/الحلقة\\s*\\d+/g, '')\n    .replace(/حلقة\\s*\\d+/g, '')\n    .replace(/episode\\s*\\d+/gi, '')\n    .replace(/ep\\.?\\s*\\d+/gi, '')\n    .replace(/\\s*[-|].*$/, '')\n    .replace(/\\s{2,}/g, ' ')\n    .trim();\n}\n\nfunction extractEpisodeNumber(title) {\n  const m = title.match(/(?:الحلقة|حلقة|ep\\.?|episode)\\s*(\\d+)/i);\n  return m ? parseInt(m[1]) : 1;\n}\n\nconst series = results\n  .filter(r => r.embeddable !== false)\n  .map(r => ({\n    ytId:          r.ytId,\n    title_ar:      extractSeriesName(r.title_ar || r.title),\n    title_orig:    r.title,\n    origin:        (r.origin && r.origin !== 'other') ? r.origin : query.origin,\n    language:      (r.language && r.language !== 'ar_dubbed') ? r.language : query.language,\n    category:      r.category,\n    poster_url:    r.poster_url,\n    year:          r.year,\n    series_id:     'series_' + r.ytId,\n    episode_number: extractEpisodeNumber(r.title || ''),\n    query:         query.query\n  }));\n\nconsole.log(`[Series] ${query.query} → ${series.length} results`);\nreturn [{ json: { series, query: query.query } }];"
       },
-      "id": "ms-02-04",
-      "name": "Extract Series Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [900, 300]
+      "id": "ms-02-04", "name": "Extract Series Data",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Import each series metadata + first episode\nconst { series } = $input.first().json;\nconst API_URL = 'https://mawso3a-stream.vercel.app/api/import';\nconst SECRET = 'wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=';\n\nasync function post(action, body) {\n  const r = await fetch(`${API_URL}?action=${action}`, {\n    method: 'POST',\n    headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n    body: JSON.stringify(body)\n  });\n  return r.json();\n}\n\nlet imported = 0, skipped = 0;\nfor (const s of series) {\n  // Create series entry\n  const sr = await post('import-series', {\n    id: s.series_id, title_ar: s.title_ar, title_orig: s.title_orig,\n    origin: s.origin, language: s.language, category: s.category,\n    poster_url: s.poster_url, year: s.year, total_eps: 0\n  });\n  \n  // Import first episode\n  const er = await post('import-episode', {\n    ytId: s.episode_yt_id, series_id: s.series_id,\n    title_ar: s.title_orig, season: 1, episode: 1\n  });\n  \n  er.ok ? imported++ : skipped++;\n}\n\nconsole.log(`✅ Series auto-discovery: ${imported} imported, ${skipped} skipped`);\nreturn [{ json: { imported, skipped, run_at: new Date().toISOString() } }];"
+        "jsCode": "const { series } = $input.first().json;\nconst API_URL = 'https://mawso3a-stream.vercel.app/api/import';\nconst SECRET = process.env.N8N_SECRET;\n\nasync function post(action, body) {\n  const r = await fetch(`${API_URL}?action=${action}`, {\n    method: 'POST',\n    headers: { 'Authorization': `Bearer ${SECRET}`, 'Content-Type': 'application/json' },\n    body: JSON.stringify(body)\n  });\n  return r.json().catch(() => ({ ok: false }));\n}\n\nlet imported = 0, skipped = 0;\nfor (const s of series) {\n  try {\n    await post('import-series', {\n      id: s.series_id, title_ar: s.title_ar, title_orig: s.title_orig,\n      origin: s.origin, language: s.language, category: s.category,\n      poster_url: s.poster_url, year: s.year, total_eps: 0\n    });\n    const er = await post('import-episode', {\n      ytId: s.ytId, series_id: s.series_id,\n      title_ar: s.title_orig, season: 1, episode: s.episode_number\n    });\n    er.ok ? imported++ : skipped++;\n  } catch(e) {\n    console.error('Error importing series:', s.title_ar, e.message);\n    skipped++;\n  }\n}\n\nconsole.log(`[Series] DONE: ${imported} imported, ${skipped} skipped`);\nreturn [{ json: { imported, skipped, run_at: new Date().toISOString() } }];"
       },
-      "id": "ms-02-05",
-      "name": "Import Series & Episodes",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1120, 300]
+      "id": "ms-02-05", "name": "Import Series + Episodes",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1120, 300]
     }
   ],
   "connections": {
-    "Every Day":               { "main": [[{ "node": "Generate Series Queries",   "type": "main", "index": 0 }]] },
-    "Generate Series Queries": { "main": [[{ "node": "Search YouTube Series",     "type": "main", "index": 0 }]] },
-    "Search YouTube Series":   { "main": [[{ "node": "Extract Series Data",       "type": "main", "index": 0 }]] },
-    "Extract Series Data":     { "main": [[{ "node": "Import Series & Episodes",  "type": "main", "index": 0 }]] }
+    "Every Day":            { "main": [[{ "node": "Generate Queries",        "type": "main", "index": 0 }]] },
+    "Generate Queries":     { "main": [[{ "node": "Search YouTube Series",   "type": "main", "index": 0 }]] },
+    "Search YouTube Series":{ "main": [[{ "node": "Extract Series Data",     "type": "main", "index": 0 }]] },
+    "Extract Series Data":  { "main": [[{ "node": "Import Series + Episodes","type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1" },
-  "_doc": {
-    "note": "Replace 'mawso3a-stream.vercel.app' and 'wxoS5Xnuqi6IJra8IEodigDALy4XdWdTfsTz6R9JhOM=' after deployment"
-  }
+  "_setup": "Set N8N_SECRET in n8n > Settings > Variables"
 }

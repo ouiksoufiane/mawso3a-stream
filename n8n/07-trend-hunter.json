@@ -1,0 +1,79 @@
+{
+  "name": "الموسوعة — Agent Tendances (quotidien)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 12 }] }
+      },
+      "id": "ms-07-01", "name": "Every 12h",
+      "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate trend-based search queries from multiple signals\nconst now = new Date();\nconst year = now.getFullYear();\nconst month = now.getMonth() + 1;\nconst isRamadan = month >= 3 && month <= 4; // approximate Ramadan window\n\nconst queries = [\n  // Trending by year/recency\n  { query: `أفضل الأفلام التركية المدبلجة ${year}`,        origin: 'turkish',  type: 'film'   },\n  { query: `أفضل مسلسلات كورية مدبلجة بالعربية ${year}`,   origin: 'korean',   type: 'series' },\n  { query: `أفضل الأفلام الهندية المدبلجة ${year}`,        origin: 'indian',   type: 'film'   },\n  { query: `مسلسل صيني رومانسي مدبلج عربي ${year}`,        origin: 'chinese',  type: 'series' },\n  { query: `أفلام صينية مدبلجة بالعربية كاملة ${year}`,   origin: 'chinese',  type: 'film'   },\n  { query: `أفلام أمريكية أكشن مدبلجة كاملة ${year}`,      origin: 'american', type: 'film'   },\n  // Moroccan trending\n  { query: 'أفضل الأفلام المغربية 2024',                   origin: 'moroccan', type: 'film'   },\n  { query: 'مسلسلات مغربية بالدارجة جديدة',                origin: 'moroccan', type: 'series' },\n];\n\n// Add Ramadan specials if applicable\nif (isRamadan) {\n  queries.push(\n    { query: `مسلسلات رمضان ${year} المغربية`,     origin: 'moroccan', type: 'series' },\n    { query: `مسلسلات رمضان ${year} تركية مدبلجة`, origin: 'turkish',  type: 'series' }\n  );\n}\n\nconsole.log(`[Trends] Generated ${queries.length} trend queries`);\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "ms-07-02", "name": "Generate Trend Queries",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/import?action=search-youtube",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: $json.query, max: 10, content_type: $json.type }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "ms-07-03", "name": "Search Trends",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.first().json.results || [];\nconst query = $('Generate Trend Queries').item.json;\n\n// For trend content, we use a slightly lower bar — min 30min for films\nconst minDuration = query.type === 'film' ? 1800 : 600;\n\nconst filtered = results\n  .filter(r => r.embeddable !== false)\n  .filter(r => !r.duration_sec || r.duration_sec >= minDuration)\n  .map(r => ({\n    ...r,\n    origin:   (r.origin && r.origin !== 'other') ? r.origin : query.origin,\n    language: r.language,\n    query:    query.query,\n    trend_source: 'trend_hunter'\n  }));\n\nconsole.log(`[Trends] ${query.query} → ${filtered.length} trend items`);\nreturn filtered.length ? [{ json: { items: filtered, type: query.type } }] : [];"
+      },
+      "id": "ms-07-04", "name": "Filter Trends",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://mawso3a-stream.vercel.app/api/import?action=import-batch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer {{ $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "ms-07-05", "name": "Import Trends",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet imported=0, skipped=0;\nfor (const item of items) {\n  imported += item.json.imported || 0;\n  skipped  += item.json.skipped  || 0;\n}\nconsole.log(`[Trends] DONE: ${imported} new trends imported, ${skipped} already existed`);\nreturn [{ json: { imported, skipped, run_at: new Date().toISOString() } }];"
+      },
+      "id": "ms-07-06", "name": "Log Results",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Every 12h":           { "main": [[{ "node": "Generate Trend Queries", "type": "main", "index": 0 }]] },
+    "Generate Trend Queries":{ "main": [[{ "node": "Search Trends",        "type": "main", "index": 0 }]] },
+    "Search Trends":       { "main": [[{ "node": "Filter Trends",          "type": "main", "index": 0 }]] },
+    "Filter Trends":       { "main": [[{ "node": "Import Trends",          "type": "main", "index": 0 }]] },
+    "Import Trends":       { "main": [[{ "node": "Log Results",            "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "_setup": "Set N8N_SECRET in n8n Variables. Adapts queries based on current year and Ramadan season."
+}

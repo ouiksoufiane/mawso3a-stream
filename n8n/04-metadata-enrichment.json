@@ -1,0 +1,90 @@
+{
+  "name": "الموسوعة — Enrichissement Métadonnées TMDB (hebdo)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "ms-04-01", "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content?status=eq.active&poster_url=is.null&order=created_at.desc&limit=100&select=id,type,title_ar,title_orig,year,origin",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "{{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "ms-04-02", "name": "Fetch Missing Posters",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = Array.isArray($input.first().json) ? $input.first().json : [];\nconsole.log(`[Metadata] ${items.length} items need enrichment`);\nif (!items.length) return [];\nreturn items.map(item => ({ json: item }));"
+      },
+      "id": "ms-04-03", "name": "Split Items",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst TMDB_KEY = process.env.TMDB_API_KEY;\nif (!TMDB_KEY) {\n  console.log('[Metadata] TMDB_API_KEY not set — skipping');\n  return [{ json: { skipped: true, reason: 'no_tmdb_key' } }];\n}\n\n// Search TMDB for this content\nconst query = encodeURIComponent(item.title_orig || item.title_ar);\nconst type = item.type === 'film' ? 'movie' : 'tv';\nconst yearParam = item.year ? `&year=${item.year}` : '';\nconst url = `https://api.themoviedb.org/3/search/${type}?api_key=${TMDB_KEY}&query=${query}&language=ar${yearParam}`;\n\ntry {\n  const r = await fetch(url);\n  const data = await r.json();\n  const result = data.results?.[0];\n  if (!result) return [{ json: { skipped: true, id: item.id, reason: 'not_found' } }];\n\n  const patch = {};\n  if (result.poster_path) patch.poster_url = `https://image.tmdb.org/t/p/w500${result.poster_path}`;\n  if (result.overview && result.overview.length > 20) patch.description = result.overview.slice(0, 1000);\n  if (result.vote_average) patch.quality_score = Math.round(result.vote_average * 10);\n  const releaseYear = parseInt((result.release_date || result.first_air_date || '').slice(0, 4));\n  if (releaseYear && !item.year) patch.year = releaseYear;\n\n  return [{ json: { id: item.id, patch, title: item.title_ar, found: true } }];\n} catch(e) {\n  console.error('[Metadata] TMDB error:', e.message);\n  return [{ json: { skipped: true, id: item.id, reason: 'fetch_error' } }];\n}"
+      },
+      "id": "ms-04-04", "name": "Fetch TMDB",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id":"has-patch","leftValue":"={{ $json.found }}","rightValue":true,"operator":{"type":"boolean","operation":"true"} }],
+          "combinator": "and"
+        }
+      },
+      "id": "ms-04-05", "name": "Has TMDB Data?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",          "value": "{{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization",   "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",    "value": "application/json" },
+            { "name": "Prefer",          "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.patch) }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "ms-04-06", "name": "Update Supabase",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updated = items.filter(i => i.json.statusCode === 204 || i.json.statusCode === 200).length;\nconsole.log(`[Metadata] ${updated} items enriched with TMDB data`);\nreturn [{ json: { updated, run_at: new Date().toISOString() } }];"
+      },
+      "id": "ms-04-07", "name": "Log Results",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1560, 220]
+    }
+  ],
+  "connections": {
+    "Every Week":          { "main": [[{ "node": "Fetch Missing Posters", "type": "main", "index": 0 }]] },
+    "Fetch Missing Posters":{ "main": [[{ "node": "Split Items",          "type": "main", "index": 0 }]] },
+    "Split Items":         { "main": [[{ "node": "Fetch TMDB",            "type": "main", "index": 0 }]] },
+    "Fetch TMDB":          { "main": [[{ "node": "Has TMDB Data?",        "type": "main", "index": 0 }]] },
+    "Has TMDB Data?":      { "main": [[{ "node": "Update Supabase",       "type": "main", "index": 0 }], []] },
+    "Update Supabase":     { "main": [[{ "node": "Log Results",           "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "_setup": "Requires TMDB_API_KEY, SUPABASE_ANON_KEY and SUPABASE_SERVICE_KEY in n8n Variables"
+}

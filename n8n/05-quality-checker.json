@@ -1,0 +1,93 @@
+{
+  "name": "الموسوعة — Agent Qualité (quotidien)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "ms-05-01", "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content?status=eq.pending&order=created_at.desc&limit=200&select=*",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "{{ $env.SUPABASE_ANON_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "ms-05-02", "name": "Fetch Pending",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = Array.isArray($input.first().json) ? $input.first().json : [];\nconsole.log(`[Quality] ${items.length} pending items to score`);\nif (!items.length) return [];\n\n// Quality scoring function\nfunction qualityScore(item) {\n  let score = 0;\n  const title = (item.title_ar || '').trim();\n\n  // Title quality (0-25 pts)\n  if (title.length >= 5)  score += 10;\n  if (title.length >= 15) score += 5;\n  if (title.length <= 150) score += 5;\n  if (!/http|www|\\.com/.test(title)) score += 5; // no URLs in title\n\n  // Metadata completeness (0-30 pts)\n  if (item.poster_url)       score += 10;\n  if (item.description)      score += 8;\n  if (item.year && item.year > 1980 && item.year <= new Date().getFullYear() + 1) score += 5;\n  if (item.duration_sec && item.duration_sec > 600) score += 7; // > 10 min\n\n  // Origin/language detection (0-20 pts)\n  if (item.origin && item.origin !== 'other')       score += 10;\n  if (item.language && item.language !== 'unknown') score += 10;\n\n  // Content validity (0-25 pts)\n  if (item.yt_id && item.yt_id.length === 11)   score += 10;\n  if (item.embeddable !== false)                 score += 10;\n  if (item.type === 'film' && item.duration_sec && item.duration_sec >= 3600) score += 5;\n  if (item.type === 'series' && item.total_eps >= 1) score += 5;\n\n  // Penalties\n  const lc = title.toLowerCase();\n  if (/trailer|teaser|promo|preview|إعلان|بروموشن/.test(lc)) score -= 30;\n  if (/part\\s*[1-9]|جزء/.test(lc)) score -= 5; // might be cut video\n\n  return Math.max(0, Math.min(100, score));\n}\n\nreturn items.map(item => ({\n  json: {\n    id: item.id,\n    title: item.title_ar,\n    score: qualityScore(item),\n    auto_publish: qualityScore(item) >= 60\n  }\n}));"
+      },
+      "id": "ms-05-03", "name": "Score Items",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id":"high-score","leftValue":"={{ $json.auto_publish }}","rightValue":true,"operator":{"type":"boolean","operation":"true"} }],
+          "combinator": "and"
+        }
+      },
+      "id": "ms-05-04", "name": "Score >= 60?",
+      "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content?id=eq.{{ $json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "{{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" },
+            { "name": "Prefer",        "value": "return=minimal" }
+          ]
+        },
+        "sendBody": true, "contentType": "raw", "rawContentType": "application/json",
+        "body": "{\"status\": \"active\"}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "ms-05-05", "name": "Publish High Quality",
+      "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1120, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Keep low-score items as pending (needs manual review)\nconst item = $input.first().json;\nconsole.log(`[Quality] Low score (${item.score}/100): ${item.title} — kept as pending`);\nreturn [{ json: { kept_pending: true, id: item.id, score: item.score } }];"
+      },
+      "id": "ms-05-06", "name": "Keep Pending",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst published = items.filter(i => !i.json.kept_pending).length;\nconst pending   = items.filter(i => i.json.kept_pending).length;\nconsole.log(`[Quality] DONE: ${published} auto-published, ${pending} kept pending`);\nreturn [{ json: { published, pending, run_at: new Date().toISOString() } }];"
+      },
+      "id": "ms-05-07", "name": "Log Summary",
+      "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":           { "main": [[{ "node": "Fetch Pending",       "type": "main", "index": 0 }]] },
+    "Fetch Pending":       { "main": [[{ "node": "Score Items",         "type": "main", "index": 0 }]] },
+    "Score Items":         { "main": [[{ "node": "Score >= 60?",        "type": "main", "index": 0 }]] },
+    "Score >= 60?":        { "main": [
+      [{ "node": "Publish High Quality","type": "main", "index": 0 }],
+      [{ "node": "Keep Pending",        "type": "main", "index": 0 }]
+    ]},
+    "Publish High Quality":{ "main": [[{ "node": "Log Summary",        "type": "main", "index": 0 }]] },
+    "Keep Pending":        { "main": [[{ "node": "Log Summary",        "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "_setup": "Set SUPABASE_ANON_KEY and SUPABASE_SERVICE_KEY in n8n Variables. Items scoring >= 60/100 are auto-published."
+}

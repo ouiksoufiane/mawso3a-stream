@@ -18,14 +18,15 @@ CREATE TABLE IF NOT EXISTS content (
   yt_id        TEXT,
   total_eps    INTEGER DEFAULT 0,
   avail_eps    INTEGER DEFAULT 0,
-  status       TEXT DEFAULT 'active' CHECK (status IN ('active','hidden','incomplete')),
-  year         INTEGER,
-  duration_sec INTEGER,
-  description  TEXT,
-  embeddable   BOOLEAN DEFAULT true,
-  view_count   INTEGER DEFAULT 0,
-  created_at   TIMESTAMPTZ DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ DEFAULT NOW()
+  status         TEXT DEFAULT 'active' CHECK (status IN ('active','hidden','incomplete','pending')),
+  year           INTEGER,
+  duration_sec   INTEGER,
+  description    TEXT,
+  embeddable     BOOLEAN DEFAULT true,
+  view_count     INTEGER DEFAULT 0,
+  quality_score  INTEGER DEFAULT 0 CHECK (quality_score >= 0 AND quality_score <= 100),
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS episodes (
@@ -87,6 +88,14 @@ CREATE TABLE IF NOT EXISTS watch_events (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Admin action log
+CREATE TABLE IF NOT EXISTS admin_actions (
+  id         SERIAL PRIMARY KEY,
+  action     TEXT NOT NULL,
+  target_id  TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Collections (playlists, editorial picks)
 CREATE TABLE IF NOT EXISTS collections (
   id          TEXT PRIMARY KEY,
@@ -122,6 +131,8 @@ CREATE INDEX IF NOT EXISTS idx_episodes_season   ON episodes(content_id, season)
 CREATE INDEX IF NOT EXISTS idx_dead_links_cid    ON dead_links(content_id);
 CREATE INDEX IF NOT EXISTS idx_watch_events_cid  ON watch_events(content_id);
 CREATE INDEX IF NOT EXISTS idx_requests_status   ON content_requests(status);
+CREATE INDEX IF NOT EXISTS idx_content_quality   ON content(quality_score DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_actions     ON admin_actions(created_at DESC);
 
 -- Full-text search on Arabic titles
 CREATE INDEX IF NOT EXISTS idx_content_title_fts ON content USING gin(to_tsvector('simple', title_ar));
@@ -242,6 +253,13 @@ CREATE POLICY "service_all_requests"  ON content_requests TO service_role USING 
 CREATE POLICY "service_all_events"    ON watch_events     TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_colls"     ON collections      TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_coll_items" ON collection_items TO service_role USING (true) WITH CHECK (true);
+
+-- Admin actions: service role only (no public read)
+CREATE POLICY "service_all_admin_actions" ON admin_actions TO service_role USING (true) WITH CHECK (true);
+
+-- Migrations (run separately if content table already exists)
+-- ALTER TABLE content ADD COLUMN IF NOT EXISTS quality_score INTEGER DEFAULT 0;
+-- ALTER TABLE content ADD COLUMN IF NOT EXISTS status_check TEXT DEFAULT 'active' CHECK (...) -- already handled above
 
 -- Grant RPC function execution to anon (view increment is public)
 GRANT EXECUTE ON FUNCTION increment_view(TEXT) TO anon;
