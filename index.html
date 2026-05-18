@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>الموسوعة ستريم — أضخم مكتبة مرئية عربية</title>
+<meta name="description" content="مكتبة ضخمة من الأفلام والمسلسلات التركية والهندية والكورية مدبلجة بالعربية والدارجة المغربية"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav" id="mainNav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"        class="nav-link active">الرئيسية</a>
+    <a href="series.html"       class="nav-link">المسلسلات</a>
+    <a href="films.html"        class="nav-link">الأفلام</a>
+    <a href="search.html"       class="nav-link keep nav-search-btn" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">🎬 أضخم مكتبة مرئية عربية</div>
+    <h1 class="hero-title">كل الأفلام<br/>والمسلسلات<br/><mark>في مكان واحد</mark></h1>
+    <p class="hero-desc">تركية، هندية، كورية، أمريكية — مدبلجة بالعربية والدارجة. مكتبة تتجدد تلقائياً كل يوم.</p>
+    <div class="hero-cta">
+      <a href="films.html" class="btn btn-primary">🎬 تصفح الأفلام</a>
+      <a href="series.html" class="btn btn-ghost">📺 المسلسلات</a>
+    </div>
+  </div>
+</section>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat"><div class="stat-num" id="statFilms">…</div><div class="stat-label">فيلم</div></div>
+  <div class="stat"><div class="stat-num" id="statSeries">…</div><div class="stat-label">مسلسل</div></div>
+  <div class="stat"><div class="stat-num" id="statEps">…</div><div class="stat-label">حلقة</div></div>
+  <div class="stat"><div class="stat-num">٥+</div><div class="stat-label">لغات مدبلجة</div></div>
+</div>
+
+<!-- Featured -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🔥</span> الأكثر مشاهدة</div>
+    <a href="films.html" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowFeatured"><div id="featSkel"></div></div>
+</div>
+
+<!-- Turkish Series -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇹🇷</span> مسلسلات تركية مدبلجة</div>
+    <a href="series.html?origin=turkish" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowTrSeries"></div>
+</div>
+
+<!-- Turkish Films -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇹🇷</span> أفلام تركية مدبلجة</div>
+    <a href="films.html?origin=turkish" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowTrFilms"></div>
+</div>
+
+<!-- Bollywood -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> أفلام هندية مدبلجة</div>
+    <a href="films.html?origin=indian" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowIndian"></div>
+</div>
+
+<!-- Korean -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇰🇷</span> أفلام ومسلسلات كورية</div>
+    <a href="films.html?origin=korean" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowKorean"></div>
+</div>
+
+<!-- Darija -->
+<div class="section" style="padding-bottom: 40px;">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇲🇦</span> محتوى بالدارجة المغربية</div>
+    <a href="films.html?language=darija" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-scroll" id="rowDarija"></div>
+</div>
+
+<footer class="footer">
+  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+  <p>مكتبة مرئية عربية شاملة — تتجدد تلقائياً</p>
+</footer>
+
+<script type="module">
+import { getStats, getFeatured, getByOrigin, getContent } from './js/api.js';
+
+// Nav scroll effect
+window.addEventListener('scroll', () => {
+  document.getElementById('mainNav').classList.toggle('solid', scrollY > 60);
+});
+
+function originBadge(o) {
+  const m = { turkish:'b-tr', indian:'b-in', korean:'b-ko', american:'b-us', moroccan:'b-ma' };
+  const l = { turkish:'تركي', indian:'هندي', korean:'كوري', american:'أمريكي', moroccan:'مغربي' };
+  return `<span class="badge ${m[o]||'b-ar'}">${l[o]||o}</span>`;
+}
+function langBadge(l) {
+  const m = { darija:'🇲🇦 دارجة', ar_dubbed:'عربي مدبلج', fr_dubbed:'فرنسي مدبلج' };
+  return `<span class="badge b-ar">${m[l]||l}</span>`;
+}
+function card(item) {
+  const thumb = item.poster_url
+    ? `<img class="card-thumb" src="${item.poster_url}" alt="${item.title_ar}" loading="lazy"/>`
+    : `<div class="card-thumb-ph">${item.type==='series'?'📺':'🎬'}</div>`;
+  const href = item.type === 'series'
+    ? `series-detail.html?id=${item.id}`
+    : `watch.html?id=${encodeURIComponent(item.id)}`;
+  return `<a href="${href}" class="card">
+    ${thumb}
+    <div class="card-body">
+      <div class="card-title">${item.title_ar}</div>
+      <div class="card-badges">${originBadge(item.origin)}${langBadge(item.language)}</div>
+    </div>
+  </a>`;
+}
+function skels(n=8) {
+  return Array.from({length:n},()=>`
+    <div class="skel card" style="width:150px">
+      <div class="skel-thumb"></div>
+      <div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div>
+    </div>`).join('');
+}
+function renderRow(id, items) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (!items?.length) { el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:20px">لا يوجد محتوى بعد — سيتم الإضافة تلقائياً</div>`; return; }
+  el.innerHTML = items.map(card).join('');
+}
+
+// Load all rows
+document.getElementById('featSkel').outerHTML = skels(8);
+
+Promise.all([
+  getStats(),
+  getFeatured({ limit: 12 }),
+  getByOrigin('turkish', 'series', 12),
+  getByOrigin('turkish', 'film', 12),
+  getByOrigin('indian', 'film', 12),
+  getContent({ origin: 'korean', limit: 12 }),
+  getContent({ language: 'darija', limit: 12 })
+]).then(([stats, featured, trSeries, trFilms, indian, korean, darija]) => {
+  document.getElementById('statFilms').textContent  = stats.films.toLocaleString('ar');
+  document.getElementById('statSeries').textContent = stats.series.toLocaleString('ar');
+  document.getElementById('statEps').textContent    = stats.eps.toLocaleString('ar');
+  renderRow('rowFeatured', featured);
+  renderRow('rowTrSeries', trSeries);
+  renderRow('rowTrFilms',  trFilms);
+  renderRow('rowIndian',   indian);
+  renderRow('rowKorean',   korean);
+  renderRow('rowDarija',   darija);
+}).catch(err => {
+  console.error('Load error:', err);
+  document.getElementById('rowFeatured').innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:20px">تعذر تحميل المحتوى</div>`;
+});
+</script>
+</body>
+</html>

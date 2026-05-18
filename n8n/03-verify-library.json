@@ -1,0 +1,125 @@
+{
+  "name": "الموسوعة — Vérification Bibliothèque (hebdo)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "ms-03-01",
+      "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content?status=eq.active&select=id,yt_id,type&order=created_at.desc&limit=500",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey",        "value": "sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az" },
+            { "name": "Authorization", "value": "Bearer sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az" }
+          ]
+        },
+        "options": { "timeout": 30000 }
+      },
+      "id": "ms-03-02",
+      "name": "Fetch Content List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.first().json;\nconst ytIds = (Array.isArray(items) ? items : []).filter(i=>i.yt_id).map(i=>i.yt_id);\nconst batchSize = 50;\nconst batches = [];\nfor (let i=0;i<ytIds.length;i+=batchSize) {\n  batches.push({ json: { ytIds: ytIds.slice(i,i+batchSize), batch: Math.floor(i/batchSize)+1 } });\n}\nconsole.log(`Checking ${ytIds.length} YouTube IDs in ${batches.length} batches`);\nreturn batches;"
+      },
+      "id": "ms-03-03",
+      "name": "Split into Batches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/import?action=verify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer MAWSO3A_N8N_SECRET" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ ytIds: $json.ytIds }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "id": "ms-03-04",
+      "name": "Verify Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst dead = [], alive_count = [];\nlet checked = 0;\nfor (const item of items) {\n  const d = item.json;\n  checked += d.checked || 0;\n  if (d.dead?.length) dead.push(...d.dead);\n  alive_count.push(d.alive || 0);\n}\nconst alive = alive_count.reduce((a,b)=>a+b,0);\nconsole.log(`✅ Verification: ${alive} alive, ${dead.length} dead`);\nreturn [{ json: { checked, alive, dead, dead_count: dead.length, checked_at: new Date().toISOString() } }];"
+      },
+      "id": "ms-03-05",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id":"has-dead","leftValue":"={{ $json.dead_count }}","rightValue":0,"operator":{"type":"number","operation":"gt"} }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ms-03-06",
+      "name": "Dead Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mark dead content as hidden in Supabase\nconst { dead } = $input.first().json;\nconst SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';\nconst SERVICE = process.env.SUPABASE_SERVICE || 'FILL_SERVICE_KEY';\n\nlet hidden = 0;\nfor (const ytId of dead) {\n  await fetch(`${SB_URL}/content?yt_id=eq.${ytId}`, {\n    method: 'PATCH',\n    headers: {\n      'apikey': SERVICE, 'Authorization': `Bearer ${SERVICE}`,\n      'Content-Type': 'application/json', 'Prefer': 'return=minimal'\n    },\n    body: JSON.stringify({ status: 'hidden' })\n  }).catch(()=>{});\n  await fetch(`${SB_URL}/episodes?yt_id=eq.${ytId}`, {\n    method: 'DELETE',\n    headers: { 'apikey': SERVICE, 'Authorization': `Bearer ${SERVICE}` }\n  }).catch(()=>{});\n  hidden++;\n}\nconsole.log(`Hidden ${hidden} dead items`);\nreturn [{ json: { hidden, dead, report: `${hidden} liens morts masqués automatiquement` } }];"
+      },
+      "id": "ms-03-07",
+      "name": "Hide Dead Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('✅ Bibliothèque الموسوعة — tous les liens sont actifs');\nreturn $input.all();"
+      },
+      "id": "ms-03-08",
+      "name": "All Good",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 400]
+    }
+  ],
+  "connections": {
+    "Every Week":        { "main": [[{ "node": "Fetch Content List", "type": "main", "index": 0 }]] },
+    "Fetch Content List":{ "main": [[{ "node": "Split into Batches", "type": "main", "index": 0 }]] },
+    "Split into Batches":{ "main": [[{ "node": "Verify Batch",       "type": "main", "index": 0 }]] },
+    "Verify Batch":      { "main": [[{ "node": "Aggregate",          "type": "main", "index": 0 }]] },
+    "Aggregate":         { "main": [[{ "node": "Dead Found?",        "type": "main", "index": 0 }]] },
+    "Dead Found?":       { "main": [
+      [{ "node": "Hide Dead Content", "type": "main", "index": 0 }],
+      [{ "node": "All Good",          "type": "main", "index": 0 }]
+    ]}
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

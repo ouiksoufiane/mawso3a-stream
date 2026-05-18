@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>بحث — الموسوعة ستريم</title>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="films.html"  class="nav-link">الأفلام</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+  </div>
+</nav>
+
+<div class="search-hero">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="ابحث عن فيلم أو مسلسل…" autofocus autocomplete="off"/>
+  </div>
+  <div class="search-info" id="searchInfo"></div>
+</div>
+
+<div class="content-grid" id="results" style="padding-top:8px"></div>
+
+<footer class="footer" style="margin-top:20px">
+  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+</footer>
+
+<script type="module">
+import { searchContent } from './js/api.js';
+
+const input = document.getElementById('searchInput');
+const info  = document.getElementById('searchInfo');
+const grid  = document.getElementById('results');
+let timer;
+
+function originBadge(o) {
+  const m={turkish:'🇹🇷 تركي',indian:'🇮🇳 هندي',korean:'🇰🇷 كوري',moroccan:'🇲🇦 مغربي',american:'🇺🇸 أمريكي'};
+  const c={turkish:'b-tr',indian:'b-in',korean:'b-ko',moroccan:'b-ma',american:'b-us'};
+  return `<span class="badge ${c[o]||'b-ar'}">${m[o]||o}</span>`;
+}
+function typeBadge(t) {
+  return t==='film'
+    ? '<span class="badge b-film">فيلم</span>'
+    : '<span class="badge b-ser">مسلسل</span>';
+}
+
+function renderResults(items, q) {
+  info.textContent = `${items.length} نتيجة للبحث عن "${q}"`;
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب كلمات مختلفة</div></div>`;
+    return;
+  }
+  grid.innerHTML = items.map(item => {
+    const href = item.type === 'film'
+      ? `watch.html?id=${encodeURIComponent(item.id)}`
+      : `series-detail.html?id=${encodeURIComponent(item.id)}`;
+    const thumb = item.poster_url
+      ? `<img class="g-thumb" src="${item.poster_url}" alt="${item.title_ar}" loading="lazy"/>`
+      : `<div class="g-thumb-ph">${item.type==='film'?'🎬':'📺'}</div>`;
+    return `<a href="${href}" class="grid-card">
+      ${thumb}
+      <div class="g-body">
+        <div class="g-title">${item.title_ar}</div>
+        <div class="g-badges">${typeBadge(item.type)}${originBadge(item.origin)}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+async function doSearch(q) {
+  if (q.trim().length < 2) { grid.innerHTML=''; info.textContent=''; return; }
+  grid.innerHTML = Array.from({length:8},()=>
+    `<div class="skel"><div class="skel-thumb"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div></div>`).join('');
+  const items = await searchContent(q.trim());
+  renderResults(items, q.trim());
+}
+
+input.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => doSearch(input.value), 400);
+});
+
+// Pre-fill from URL
+const sp = new URLSearchParams(location.search);
+const preQ = sp.get('q');
+if (preQ) { input.value = preQ; doSearch(preQ); }
+</script>
+</body>
+</html>

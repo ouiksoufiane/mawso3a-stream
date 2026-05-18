@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>الأفلام — الموسوعة ستريم</title>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid" id="mainNav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+    <a href="films.html"  class="nav-link active">الأفلام</a>
+    <a href="search.html" class="nav-link keep nav-search-btn" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<div class="page-top">
+  <div class="page-title">🎬 الأفلام</div>
+  <div class="page-sub" id="pageCount">جاري التحميل…</div>
+</div>
+
+<div class="filters-bar">
+  <div class="filter-group">
+    <span class="filter-label">الأصل:</span>
+    <button class="filter-btn on" data-filter="origin" data-val="">الكل</button>
+    <button class="filter-btn" data-filter="origin" data-val="turkish">🇹🇷 تركي</button>
+    <button class="filter-btn" data-filter="origin" data-val="indian">🇮🇳 هندي</button>
+    <button class="filter-btn" data-filter="origin" data-val="korean">🇰🇷 كوري</button>
+    <button class="filter-btn" data-filter="origin" data-val="american">🇺🇸 أمريكي</button>
+    <button class="filter-btn" data-filter="origin" data-val="moroccan">🇲🇦 مغربي</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">اللغة:</span>
+    <button class="filter-btn on" data-filter="language" data-val="">الكل</button>
+    <button class="filter-btn" data-filter="language" data-val="ar_dubbed">عربي مدبلج</button>
+    <button class="filter-btn" data-filter="language" data-val="darija">🇲🇦 دارجة</button>
+    <button class="filter-btn" data-filter="language" data-val="fr_dubbed">فرنسي</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">التصنيف:</span>
+    <button class="filter-btn on" data-filter="category" data-val="">الكل</button>
+    <button class="filter-btn" data-filter="category" data-val="drama">دراما</button>
+    <button class="filter-btn" data-filter="category" data-val="action">أكشن</button>
+    <button class="filter-btn" data-filter="category" data-val="comedy">كوميدي</button>
+    <button class="filter-btn" data-filter="category" data-val="horror">رعب</button>
+    <button class="filter-btn" data-filter="category" data-val="romance">رومانسي</button>
+  </div>
+</div>
+
+<div class="content-grid" id="grid"></div>
+<div class="pagination" id="pager"></div>
+
+<footer class="footer">
+  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+</footer>
+
+<script type="module">
+import { getContent, countContent } from './js/api.js';
+
+const PER_PAGE = 24;
+let state = { origin: '', language: '', category: '', page: 0, total: 0 };
+
+// Read URL params
+const sp = new URLSearchParams(location.search);
+if (sp.get('origin'))   state.origin   = sp.get('origin');
+if (sp.get('language')) state.language = sp.get('language');
+if (sp.get('category')) state.category = sp.get('category');
+
+// Sync filter buttons with state
+function syncFilters() {
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    const key = btn.dataset.filter;
+    btn.classList.toggle('on', btn.dataset.val === state[key]);
+  });
+}
+
+// Filter click
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state[btn.dataset.filter] = btn.dataset.val;
+    state.page = 0;
+    syncFilters();
+    load();
+  });
+});
+
+function originLabel(o) {
+  const m = { turkish:'🇹🇷 تركي', indian:'🇮🇳 هندي', korean:'🇰🇷 كوري', american:'🇺🇸 أمريكي', moroccan:'🇲🇦 مغربي' };
+  const c = { turkish:'b-tr', indian:'b-in', korean:'b-ko', american:'b-us', moroccan:'b-ma' };
+  return `<span class="badge ${c[o]||'b-ar'}">${m[o]||o}</span>`;
+}
+function langLabel(l) {
+  const m = { darija:'🇲🇦 دارجة', ar_dubbed:'عربي مدبلج', fr_dubbed:'فرنسي' };
+  return `<span class="badge b-ar">${m[l]||l}</span>`;
+}
+function catLabel(c) {
+  const m = { drama:'دراما', action:'أكشن', comedy:'كوميدي', horror:'رعب', romance:'رومانسي', 'sci-fi':'خيال علمي', animation:'أنيماشن' };
+  return m[c] ? `<span class="badge b-dr">${m[c]}</span>` : '';
+}
+
+function renderGrid(items) {
+  const g = document.getElementById('grid');
+  if (!items.length) {
+    g.innerHTML = `<div class="empty"><div class="empty-icon">🎬</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب تصفية أخرى أو انتظر الإضافة التلقائية</div></div>`;
+    return;
+  }
+  g.innerHTML = items.map(item => {
+    const thumb = item.poster_url
+      ? `<img class="g-thumb" src="${item.poster_url}" alt="${item.title_ar}" loading="lazy"/>`
+      : `<div class="g-thumb-ph">🎬</div>`;
+    return `<a href="watch.html?id=${encodeURIComponent(item.id)}" class="grid-card">
+      ${thumb}
+      <div class="g-body">
+        <div class="g-title">${item.title_ar}</div>
+        <div class="g-badges">${originLabel(item.origin)}${langLabel(item.language)}${catLabel(item.category)}</div>
+      </div>
+    </a>`;
+  }).join('');
+}
+
+function renderSkeleton() {
+  document.getElementById('grid').innerHTML = Array.from({length:24},()=>`
+    <div class="skel"><div class="skel-thumb"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div></div>`).join('');
+}
+
+function renderPager(total, page) {
+  const pages = Math.ceil(total / PER_PAGE);
+  const el = document.getElementById('pager');
+  if (pages <= 1) { el.innerHTML=''; return; }
+  const start = Math.max(0, page-2), end = Math.min(pages-1, page+2);
+  let html = '';
+  if (page > 0) html += `<button class="pg-btn" data-p="${page-1}">‹</button>`;
+  for (let i=start; i<=end; i++) {
+    html += `<button class="pg-btn ${i===page?'on':''}" data-p="${i}">${i+1}</button>`;
+  }
+  if (page < pages-1) html += `<button class="pg-btn" data-p="${page+1}">›</button>`;
+  el.innerHTML = html;
+  el.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => { state.page = +b.dataset.p; load(); window.scrollTo(0,0); }));
+}
+
+async function load() {
+  renderSkeleton();
+  const [items, total] = await Promise.all([
+    getContent({ type:'film', origin: state.origin||undefined, language: state.language||undefined, category: state.category||undefined, limit: PER_PAGE, offset: state.page * PER_PAGE }),
+    countContent({ type:'film', origin: state.origin||undefined, language: state.language||undefined, category: state.category||undefined })
+  ]);
+  state.total = total;
+  document.getElementById('pageCount').textContent = `${total.toLocaleString('ar')} فيلم`;
+  renderGrid(items);
+  renderPager(total, state.page);
+}
+
+syncFilters();
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+{
+  "name": "الموسوعة — Auto Découverte Films (toutes 6h)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] }
+      },
+      "id": "ms-01-01",
+      "name": "Every 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate all search queries for films\nconst queries = [\n  { query: 'فيلم تركي مدبلج بالعربية كامل',    origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'فيلم هندي مدبلج بالعربية كامل',    origin: 'indian',   language: 'ar_dubbed' },\n  { query: 'فيلم كوري مدبلج بالعربية كامل',    origin: 'korean',   language: 'ar_dubbed' },\n  { query: 'فيلم أمريكي مدبلج بالعربية كامل',  origin: 'american', language: 'ar_dubbed' },\n  { query: 'فيلم مغربي بالدارجة كامل',          origin: 'moroccan', language: 'darija'    },\n  { query: 'فيلم مدبلج بالدارجة المغربية كامل', origin: 'other',    language: 'darija'    },\n  { query: 'فيلم تركي مدبلج 2024 كامل',         origin: 'turkish',  language: 'ar_dubbed' },\n  { query: 'فيلم هندي بوليوود مدبلج عربي',      origin: 'indian',   language: 'ar_dubbed' }\n];\nconsole.log(`Generated ${queries.length} search queries`);\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "ms-01-02",
+      "name": "Generate Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/import?action=search-youtube",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer MAWSO3A_N8N_SECRET" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ query: $json.query, max: 20, content_type: 'film' }) }}",
+        "options": { "timeout": 30000 }
+      },
+      "id": "ms-01-03",
+      "name": "Search YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enrich each result with origin/language from the query context\nconst results = $input.first().json.results || [];\nconst query = $('Generate Queries').item.json;\nconsole.log(`Query: ${query.query} → ${results.length} results`);\nconst enriched = results\n  .filter(r => r.embeddable !== false)\n  .filter(r => !r.duration_sec || r.duration_sec > 3600) // films > 60min\n  .map(r => ({\n    ...r,\n    origin:   r.origin   !== 'other' ? r.origin   : query.origin,\n    language: r.language !== 'ar_dubbed' ? r.language : query.language,\n    query:    query.query\n  }));\nconsole.log(`After filter: ${enriched.length} valid films`);\nreturn [{ json: { items: enriched, query: query.query } }];"
+      },
+      "id": "ms-01-04",
+      "name": "Filter & Enrich",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/import?action=import-batch",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer MAWSO3A_N8N_SECRET" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "ms-01-05",
+      "name": "Import to DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet totalImported=0, totalSkipped=0, totalErrors=0;\nfor (const item of items) {\n  totalImported += item.json.imported || 0;\n  totalSkipped  += item.json.skipped  || 0;\n  totalErrors   += item.json.errors   || 0;\n}\nconsole.log(`✅ Films auto-discovery done: ${totalImported} imported, ${totalSkipped} skipped, ${totalErrors} errors`);\nreturn [{ json: { done: true, imported: totalImported, skipped: totalSkipped, errors: totalErrors, run_at: new Date().toISOString() } }];"
+      },
+      "id": "ms-01-06",
+      "name": "Log Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Every 6h":        { "main": [[{ "node": "Generate Queries", "type": "main", "index": 0 }]] },
+    "Generate Queries":{ "main": [[{ "node": "Search YouTube",   "type": "main", "index": 0 }]] },
+    "Search YouTube":  { "main": [[{ "node": "Filter & Enrich",  "type": "main", "index": 0 }]] },
+    "Filter & Enrich": { "main": [[{ "node": "Import to DB",     "type": "main", "index": 0 }]] },
+    "Import to DB":    { "main": [[{ "node": "Log Results",      "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "_doc": {
+    "site": "mawso3a-stream.vercel.app",
+    "secret_env": "MAWSO3A_N8N_SECRET",
+    "update_url": "Replace 'mawso3a-stream.vercel.app' with actual Vercel URL after deployment",
+    "update_secret": "Replace 'MAWSO3A_N8N_SECRET' with actual value from Vercel env vars"
+  }
+}
