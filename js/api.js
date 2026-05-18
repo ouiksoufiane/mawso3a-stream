@@ -7,10 +7,12 @@ const HEADERS = {
   'Accept': 'application/json'
 };
 
-async function sbGet(path, opts = {}) {
-  const url = new URL(`${SB_URL}/${path}`);
-  const res = await fetch(url, { headers: { ...HEADERS, ...opts } });
-  if (!res.ok) throw new Error(`DB ${res.status}`);
+async function sbGet(path) {
+  const res = await fetch(`${SB_URL}/${path}`, { headers: HEADERS });
+  if (!res.ok) {
+    const err = await res.text().catch(() => '');
+    throw new Error(`DB ${res.status}: ${err}`);
+  }
   return res.json();
 }
 
@@ -22,8 +24,16 @@ async function sbCount(path) {
   return parseInt(cr?.split('/')[1] || '0');
 }
 
-// ── Content queries ──────────────────────────────────────────
+async function sbRpc(fn, args = {}) {
+  const res = await fetch(`${SB_URL}/rpc/${fn}`, {
+    method: 'POST',
+    headers: { ...HEADERS, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args)
+  });
+  return res.json().catch(() => null);
+}
 
+// ── Stats ──────────────────────────────────────────────────────
 export async function getStats() {
   const [films, series, eps] = await Promise.all([
     sbCount('content?type=eq.film&status=eq.active'),
@@ -33,21 +43,30 @@ export async function getStats() {
   return { films, series, eps };
 }
 
-export async function getContent({ type, origin, language, category, limit = 24, offset = 0, order = 'created_at.desc' } = {}) {
-  let q = `content?status=eq.active&order=${order}&limit=${limit}&offset=${offset}&select=*`;
+// ── Content list with full filter support ────────────────────
+export async function getContent({
+  type, origin, language, category,
+  limit = 24, offset = 0,
+  order = 'created_at.desc',
+  year, status = 'active'
+} = {}) {
+  let q = `content?order=${order}&limit=${limit}&offset=${offset}&select=*`;
+  if (status)   q += `&status=eq.${status}`;
   if (type)     q += `&type=eq.${type}`;
   if (origin)   q += `&origin=eq.${origin}`;
   if (language) q += `&language=eq.${language}`;
   if (category) q += `&category=eq.${category}`;
+  if (year)     q += `&year=eq.${year}`;
   return sbGet(q);
 }
 
-export async function countContent({ type, origin, language, category } = {}) {
-  let q = `content?status=eq.active`;
+export async function countContent({ type, origin, language, category, year, status = 'active' } = {}) {
+  let q = `content?status=eq.${status}`;
   if (type)     q += `&type=eq.${type}`;
   if (origin)   q += `&origin=eq.${origin}`;
   if (language) q += `&language=eq.${language}`;
   if (category) q += `&category=eq.${category}`;
+  if (year)     q += `&year=eq.${year}`;
   return sbCount(q);
 }
 
@@ -56,14 +75,17 @@ export async function getContentById(id) {
   return arr[0] || null;
 }
 
-export async function searchContent(q, { type } = {}) {
-  let path = `content?status=eq.active&title_ar=ilike.*${encodeURIComponent(q)}*&order=view_count.desc&limit=40&select=*`;
+// ── Search: title_ar + title_orig + description ──────────────
+export async function searchContent(q, { type, limit = 40 } = {}) {
+  const enc = encodeURIComponent(q);
+  let path = `content?status=eq.active&or=(title_ar.ilike.*${enc}*,title_orig.ilike.*${enc}*)&order=view_count.desc&limit=${limit}&select=*`;
   if (type) path += `&type=eq.${type}`;
   return sbGet(path);
 }
 
+// ── Episodes ─────────────────────────────────────────────────
 export async function getEpisodes(contentId, season) {
-  let q = `episodes?content_id=eq.${encodeURIComponent(contentId)}&order=episode.asc&select=*`;
+  let q = `episodes?content_id=eq.${encodeURIComponent(contentId)}&order=season.asc,episode.asc&select=*`;
   if (season !== undefined && season !== null) q += `&season=eq.${season}`;
   return sbGet(q);
 }
@@ -73,18 +95,43 @@ export async function getSeasons(contentId) {
   return [...new Set(eps.map(e => e.season).filter(Boolean))].sort((a,b)=>a-b);
 }
 
+export async function getRecentEpisodes(limit = 16) {
+  return sbGet(`episodes?order=created_at.desc&limit=${limit}&select=*,content:content_id(id,title_ar,poster_url,origin)`);
+}
+
+// ── Featured / By origin ──────────────────────────────────────
 export async function getFeatured({ limit = 10 } = {}) {
-  return sbGet(`content?status=eq.active&order=view_count.desc,created_at.desc&limit=${limit}&select=*`);
+  return sbGet(`content?status=eq.active&poster_url=not.is.null&order=view_count.desc,created_at.desc&limit=${limit}&select=*`);
 }
 
 export async function getByOrigin(origin, type, limit = 12) {
   return sbGet(`content?status=eq.active&origin=eq.${origin}&type=eq.${type}&order=created_at.desc&limit=${limit}&select=*`);
 }
 
+// ── View count: use RPC to safely increment ──────────────────
 export async function incrementView(id) {
-  await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { ...HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-    body: JSON.stringify({ view_count: null })
-  }).catch(() => {});
+  try {
+    await sbRpc('increment_view', { content_id: id });
+  } catch {}
+}
+
+// ── Report dead link ─────────────────────────────────────────
+export async function reportDeadLink(contentId, ytId) {
+  try {
+    await fetch('/api/report-dead-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentId, ytId })
+    });
+  } catch {}
+}
+
+// ── Request content ──────────────────────────────────────────
+export async function requestContent(data) {
+  const res = await fetch('/api/request-content', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  return res.json();
 }

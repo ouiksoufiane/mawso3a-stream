@@ -1,23 +1,35 @@
 {
   "functions": {
-    "api/import.js": { "maxDuration": 60 },
-    "api/status.js": { "maxDuration": 10 }
+    "api/import.js":         { "maxDuration": 60 },
+    "api/status.js":         { "maxDuration": 10 },
+    "api/report-dead-link.js": { "maxDuration": 10 },
+    "api/request-content.js":  { "maxDuration": 10 }
   },
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options",        "value": "SAMEORIGIN" }
+        { "key": "X-Frame-Options",        "value": "SAMEORIGIN" },
+        { "key": "X-XSS-Protection",       "value": "1; mode=block" },
+        { "key": "Referrer-Policy",        "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy",     "value": "camera=(), microphone=(), geolocation=()" }
       ]
     },
     {
-      "source": "/api/(.*)",
+      "source": "/css/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin",  "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Authorization,Content-Type" }
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
+      ]
+    },
+    {
+      "source": "/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=604800" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/404", "destination": "/404.html" }
   ]
 }

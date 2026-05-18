@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>لوحة الإدارة — الموسوعة ستريم</title>
+<meta name="robots" content="noindex,nofollow"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+<!-- AUTH SCREEN -->
+<div class="admin-auth" id="authScreen">
+  <div class="admin-auth-card">
+    <div class="admin-auth-logo">الموسوعة <em style="-webkit-text-fill-color:var(--text-dim);background:none;font-style:normal;font-weight:300">ستريم</em></div>
+    <div style="font-size:32px;margin-bottom:12px">🔐</div>
+    <div class="admin-auth-sub">لوحة الإدارة — أدخل رمز المرور</div>
+    <div style="margin-bottom:20px;display:flex;flex-direction:column;gap:12px">
+      <input type="password" id="authInput" class="admin-input" style="width:100%;text-align:center;font-size:16px;padding:14px" placeholder="رمز المرور..." onkeydown="if(event.key==='Enter')checkAuth()"/>
+      <button onclick="checkAuth()" class="btn btn-primary" style="width:100%;justify-content:center">الدخول</button>
+    </div>
+    <div id="authError" style="color:#f87171;font-size:13px;display:none">رمز مرور خاطئ</div>
+  </div>
+</div>
+
+<!-- ADMIN LAYOUT (hidden until auth) -->
+<div id="adminApp" style="display:none">
+  <nav class="nav solid">
+    <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+    <div style="font-size:13px;color:var(--text-dim);font-weight:600">لوحة الإدارة</div>
+    <div class="nav-right">
+      <button onclick="logout()" class="btn btn-ghost btn-sm">خروج</button>
+    </div>
+  </nav>
+
+  <div class="admin-layout">
+    <!-- Sidebar navigation -->
+    <div class="admin-sidebar">
+      <div style="padding:16px 24px 8px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700">القائمة</div>
+      <div class="admin-nav-item active" onclick="showSection('stats')"><span class="admin-nav-icon">📊</span> الإحصائيات</div>
+      <div class="admin-nav-item" onclick="showSection('content')"><span class="admin-nav-icon">🎬</span> المحتوى</div>
+      <div class="admin-nav-item" onclick="showSection('pending')"><span class="admin-nav-icon">⏳</span> في الانتظار</div>
+      <div class="admin-nav-item" onclick="showSection('dead')"><span class="admin-nav-icon">💀</span> الروابط المعطلة</div>
+      <div class="admin-nav-item" onclick="showSection('requests')"><span class="admin-nav-icon">📬</span> الطلبات</div>
+      <div class="admin-nav-item" onclick="showSection('import')"><span class="admin-nav-icon">➕</span> إضافة محتوى</div>
+      <div class="admin-nav-item" onclick="showSection('logs')"><span class="admin-nav-icon">📋</span> سجل الاستيراد</div>
+    </div>
+
+    <!-- Main area -->
+    <div class="admin-main">
+
+      <!-- STATS SECTION -->
+      <div class="admin-section active" id="sec-stats">
+        <div class="admin-title">📊 الإحصائيات</div>
+        <div class="admin-stats" id="adminStats">
+          <div class="admin-stat-card"><div class="admin-stat-n" id="st-films">…</div><div class="admin-stat-l">أفلام نشطة</div></div>
+          <div class="admin-stat-card"><div class="admin-stat-n" id="st-series">…</div><div class="admin-stat-l">مسلسلات نشطة</div></div>
+          <div class="admin-stat-card"><div class="admin-stat-n" id="st-eps">…</div><div class="admin-stat-l">حلقات</div></div>
+          <div class="admin-stat-card"><div class="admin-stat-n" id="st-total">…</div><div class="admin-stat-l">إجمالي المحتوى</div></div>
+        </div>
+        <div style="margin-bottom:32px">
+          <div class="admin-title" style="font-size:18px;margin-bottom:16px">التوزيع حسب الأصل</div>
+          <div id="originChart" style="display:grid;gap:8px"></div>
+        </div>
+        <div>
+          <div class="admin-title" style="font-size:18px;margin-bottom:16px">آخر 5 عمليات اكتشاف</div>
+          <div id="recentLogs"></div>
+        </div>
+      </div>
+
+      <!-- CONTENT SECTION -->
+      <div class="admin-section" id="sec-content">
+        <div class="admin-title">🎬 إدارة المحتوى</div>
+        <div class="admin-filters">
+          <input type="text" id="contentSearch" class="admin-input" placeholder="بحث بالعنوان…" style="min-width:240px" oninput="debounce(loadContent,400)()"/>
+          <select id="contentTypeF" class="admin-input" onchange="loadContent()">
+            <option value="">كل الأنواع</option>
+            <option value="film">أفلام</option>
+            <option value="series">مسلسلات</option>
+          </select>
+          <select id="contentOriginF" class="admin-input" onchange="loadContent()">
+            <option value="">كل الأصول</option>
+            <option value="turkish">تركي</option>
+            <option value="indian">هندي</option>
+            <option value="korean">كوري</option>
+            <option value="american">أمريكي</option>
+            <option value="moroccan">مغربي</option>
+            <option value="chinese">صيني</option>
+            <option value="other">أخرى</option>
+          </select>
+          <select id="contentStatusF" class="admin-input" onchange="loadContent()">
+            <option value="active">نشط</option>
+            <option value="hidden">مخفي</option>
+            <option value="">الكل</option>
+          </select>
+          <button onclick="loadContent()" class="btn btn-ghost btn-sm">تحديث</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="admin-table" id="contentTable">
+            <thead><tr>
+              <th>الصورة</th><th>العنوان</th><th>النوع</th><th>الأصل</th><th>المشاهدات</th><th>الحالة</th><th>الإجراء</th>
+            </tr></thead>
+            <tbody id="contentBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="contentPager"></div>
+      </div>
+
+      <!-- PENDING SECTION -->
+      <div class="admin-section" id="sec-pending">
+        <div class="admin-title">⏳ محتوى في الانتظار</div>
+        <div class="admin-subtitle">محتوى لم يُنشر بعد — راجعه وافعل ما يلزم</div>
+        <div id="pendingList"><div style="color:var(--text-dim)">جاري التحميل…</div></div>
+      </div>
+
+      <!-- DEAD LINKS SECTION -->
+      <div class="admin-section" id="sec-dead">
+        <div class="admin-title">💀 روابط معطلة</div>
+        <div class="admin-subtitle">محتوى أبلغ عنه المستخدمون بأنه معطل</div>
+        <div id="deadList"><div style="color:var(--text-dim)">جاري التحميل…</div></div>
+      </div>
+
+      <!-- REQUESTS SECTION -->
+      <div class="admin-section" id="sec-requests">
+        <div class="admin-title">📬 طلبات إضافة محتوى</div>
+        <div id="requestsList"><div style="color:var(--text-dim)">جاري التحميل…</div></div>
+      </div>
+
+      <!-- IMPORT SECTION -->
+      <div class="admin-section" id="sec-import">
+        <div class="admin-title">➕ إضافة محتوى يدوياً</div>
+        <div style="display:grid;gap:32px;grid-template-columns:1fr 1fr;max-width:900px">
+          <!-- Add film -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px">
+            <div style="font-size:16px;font-weight:800;margin-bottom:20px">🎬 إضافة فيلم</div>
+            <div class="admin-form">
+              <div><label class="admin-label">YouTube ID *</label><input type="text" id="f-ytId" class="admin-input" style="width:100%" placeholder="مثال: dQw4w9WgXcQ"/></div>
+              <div><label class="admin-label">العنوان العربي *</label><input type="text" id="f-title" class="admin-input" style="width:100%" placeholder="عنوان الفيلم"/></div>
+              <div class="admin-form-row">
+                <div><label class="admin-label">الأصل</label>
+                  <select id="f-origin" class="admin-input" style="width:100%">
+                    <option value="turkish">تركي</option><option value="indian">هندي</option>
+                    <option value="korean">كوري</option><option value="american">أمريكي</option>
+                    <option value="moroccan">مغربي</option><option value="chinese">صيني</option>
+                    <option value="other">أخرى</option>
+                  </select>
+                </div>
+                <div><label class="admin-label">اللغة</label>
+                  <select id="f-language" class="admin-input" style="width:100%">
+                    <option value="ar_dubbed">عربي مدبلج</option>
+                    <option value="darija">دارجة</option>
+                    <option value="fr_dubbed">فرنسي مدبلج</option>
+                  </select>
+                </div>
+              </div>
+              <div class="admin-form-row">
+                <div><label class="admin-label">التصنيف</label>
+                  <select id="f-category" class="admin-input" style="width:100%">
+                    <option value="drama">دراما</option><option value="action">أكشن</option>
+                    <option value="comedy">كوميدي</option><option value="romance">رومانسي</option>
+                    <option value="horror">رعب</option>
+                  </select>
+                </div>
+                <div><label class="admin-label">السنة</label><input type="number" id="f-year" class="admin-input" style="width:100%" placeholder="2024" min="1990" max="2030"/></div>
+              </div>
+              <button onclick="addFilm()" class="btn btn-primary" style="justify-content:center" id="addFilmBtn">إضافة الفيلم</button>
+              <div id="addFilmMsg" style="font-size:13px;display:none"></div>
+            </div>
+          </div>
+          <!-- Search YouTube -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px">
+            <div style="font-size:16px;font-weight:800;margin-bottom:20px">🔍 بحث YouTube واستيراد</div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <input type="text" id="yt-query" class="admin-input" style="width:100%" placeholder="مثال: مسلسل تركي مدبلج 2024"/>
+              <select id="yt-type" class="admin-input" style="width:100%">
+                <option value="film">أفلام (فيديوهات طويلة)</option>
+                <option value="series">مسلسلات</option>
+              </select>
+              <button onclick="searchYT()" class="btn btn-ghost" id="ytSearchBtn" style="justify-content:center">🔍 بحث</button>
+            </div>
+            <div id="ytResults" style="margin-top:16px;max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGS SECTION -->
+      <div class="admin-section" id="sec-logs">
+        <div class="admin-title">📋 سجل الاستيراد التلقائي</div>
+        <div id="logsList"><div style="color:var(--text-dim)">جاري التحميل…</div></div>
+      </div>
+
+    </div><!-- /admin-main -->
+  </div><!-- /admin-layout -->
+</div><!-- /adminApp -->
+
+<script>
+const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
+const SB_ANON = 'sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az';
+let TOKEN = '';
+let SVC   = '';
+const PER = 20;
+let contentPage = 0;
+
+/* ── Auth ── */
+function checkAuth() {
+  const val = document.getElementById('authInput').value.trim();
+  TOKEN = val;
+  fetch('/api/import?action=status', {
+    headers: { 'Authorization': `Bearer ${val}` }
+  }).then(r => r.json()).then(d => {
+    if (d.status === 'ok') {
+      document.getElementById('authScreen').style.display = 'none';
+      document.getElementById('adminApp').style.display   = 'block';
+      sessionStorage.setItem('admin_token', val);
+      loadStats();
+    } else {
+      document.getElementById('authError').style.display = '';
+    }
+  }).catch(() => { document.getElementById('authError').style.display = ''; });
+}
+function logout() {
+  sessionStorage.removeItem('admin_token');
+  location.reload();
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = sessionStorage.getItem('admin_token');
+  if (saved) { document.getElementById('authInput').value = saved; checkAuth(); }
+  document.getElementById('authInput').focus();
+});
+
+/* ── Section navigation ── */
+function showSection(name) {
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'content') loadContent();
+  if (name === 'pending') loadPending();
+  if (name === 'dead')    loadDeadLinks();
+  if (name === 'requests') loadRequests();
+  if (name === 'logs')    loadLogs();
+}
+
+/* ── Supabase helper ── */
+async function sb(path, opts = {}) {
+  const r = await fetch(`${SB_URL}/${path}`, {
+    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Accept': 'application/json' },
+    ...opts
+  });
+  return r.json();
+}
+async function sbCount(path) {
+  const r = await fetch(`${SB_URL}/${path}`, {
+    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Prefer': 'count=exact', 'Range': '0-0' }
+  });
+  return parseInt(r.headers.get('content-range')?.split('/')[1] || '0');
+}
+
+/* ── Stats ── */
+async function loadStats() {
+  const [films, series, eps, total] = await Promise.all([
+    sbCount('content?type=eq.film&status=eq.active'),
+    sbCount('content?type=eq.series&status=eq.active'),
+    sbCount('episodes'),
+    sbCount('content?status=eq.active')
+  ]);
+  document.getElementById('st-films').textContent  = films.toLocaleString('ar');
+  document.getElementById('st-series').textContent = series.toLocaleString('ar');
+  document.getElementById('st-eps').textContent    = eps.toLocaleString('ar');
+  document.getElementById('st-total').textContent  = total.toLocaleString('ar');
+
+  // Origin distribution
+  const origins = ['turkish','indian','chinese','moroccan','american','korean','other'];
+  const counts = await Promise.all(origins.map(o => sbCount(`content?status=eq.active&origin=eq.${o}`)));
+  const maxC = Math.max(...counts);
+  document.getElementById('originChart').innerHTML = origins.map((o, i) => `
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="width:80px;font-size:12px;color:var(--text-dim);text-align:left">${o}</span>
+      <div style="flex:1;height:12px;background:var(--card);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${maxC?counts[i]/maxC*100:0}%;background:linear-gradient(to left,var(--accent),var(--accent2));border-radius:4px;transition:width .5s"></div>
+      </div>
+      <span style="font-size:13px;font-weight:700;color:var(--accent);min-width:36px;text-align:right">${counts[i]}</span>
+    </div>`).join('');
+
+  // Logs
+  const logs = await sb('discovery_log?order=run_at.desc&limit=5');
+  document.getElementById('recentLogs').innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>التاريخ</th><th>الاستعلام</th><th>وُجد</th><th>مُستورد</th><th>تخطي</th></tr></thead>
+      <tbody>${(Array.isArray(logs)?logs:[]).map(l=>`<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${new Date(l.run_at).toLocaleString('ar')}</td>
+        <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l.query||''}</td>
+        <td><span class="badge b-ar">${l.found||0}</span></td>
+        <td><span class="badge b-complete">${l.imported||0}</span></td>
+        <td><span class="badge b-year">${l.skipped||0}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+/* ── Content table ── */
+async function loadContent() {
+  const search = document.getElementById('contentSearch').value;
+  const type   = document.getElementById('contentTypeF').value;
+  const origin = document.getElementById('contentOriginF').value;
+  const status = document.getElementById('contentStatusF').value;
+
+  let q = `content?order=created_at.desc&limit=${PER}&offset=${contentPage*PER}&select=*`;
+  if (status) q += `&status=eq.${status}`;
+  if (type)   q += `&type=eq.${type}`;
+  if (origin) q += `&origin=eq.${origin}`;
+  if (search) q += `&title_ar=ilike.*${encodeURIComponent(search)}*`;
+
+  const items = await sb(q);
+  document.getElementById('contentBody').innerHTML = (Array.isArray(items)?items:[]).map(item => `
+    <tr>
+      <td>${item.poster_url ? `<img src="${item.poster_url}" style="width:36px;aspect-ratio:2/3;object-fit:cover;border-radius:4px">` : '<span style="font-size:24px">${item.type==="series"?"📺":"🎬"}</span>'}</td>
+      <td style="max-width:220px">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title_ar||''}</div>
+        <div style="font-size:11px;color:var(--text-muted)">ID: ${item.id}</div>
+      </td>
+      <td><span class="badge ${item.type==='film'?'b-film':'b-ser'}">${item.type==='film'?'فيلم':'مسلسل'}</span></td>
+      <td>${item.origin||''}</td>
+      <td style="font-size:12px;color:var(--text-dim)">${(item.view_count||0).toLocaleString('ar')}</td>
+      <td><span class="badge ${item.status==='active'?'b-complete':'b-dead'}">${item.status}</span></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="${item.type==='film'?'watch.html?id=':'series-detail.html?id='}${encodeURIComponent(item.id)}" target="_blank" class="btn btn-ghost btn-xs">عرض</a>
+        ${item.status==='active'
+          ? `<button onclick="hideContent('${item.id}')" class="btn btn-danger btn-xs">إخفاء</button>`
+          : `<button onclick="showContent('${item.id}')" class="btn btn-ghost btn-xs">تفعيل</button>`}
+      </td>
+    </tr>`).join('');
+}
+
+async function hideContent(id) {
+  if (!confirm('هل تريد إخفاء هذا المحتوى؟')) return;
+  await apiCall('import', 'PATCH', { id, status: 'hidden' });
+  loadContent();
+}
+async function showContent(id) {
+  await apiCall('import', 'PATCH', { id, status: 'active' });
+  loadContent();
+}
+
+/* ── Pending ── */
+async function loadPending() {
+  const items = await sb('content?status=eq.pending&order=created_at.desc&limit=50&select=*').catch(()=>[]);
+  if (!Array.isArray(items) || !items.length) {
+    document.getElementById('pendingList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا يوجد محتوى في الانتظار ✅</div>';
+    return;
+  }
+  document.getElementById('pendingList').innerHTML = `<table class="admin-table">
+    <thead><tr><th>العنوان</th><th>النوع</th><th>الأصل</th><th>تاريخ الإضافة</th><th>الإجراء</th></tr></thead>
+    <tbody>${items.map(item=>`<tr>
+      <td style="font-size:13px;font-weight:600">${item.title_ar||''}</td>
+      <td><span class="badge ${item.type==='film'?'b-film':'b-ser'}">${item.type==='film'?'فيلم':'مسلسل'}</span></td>
+      <td>${item.origin||''}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${new Date(item.created_at).toLocaleDateString('ar')}</td>
+      <td style="display:flex;gap:6px">
+        <button onclick="approveContent('${item.id}')" class="btn btn-primary btn-xs">موافقة</button>
+        <button onclick="rejectContent('${item.id}')" class="btn btn-danger btn-xs">رفض</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+async function approveContent(id) {
+  await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ status: 'active' })
+  });
+  loadPending();
+}
+async function rejectContent(id) {
+  if (!confirm('حذف هذا المحتوى نهائياً؟')) return;
+  await fetch(`${SB_URL}/content?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ status: 'hidden' })
+  });
+  loadPending();
+}
+
+/* ── Dead links ── */
+async function loadDeadLinks() {
+  const rows = await sb('dead_links?order=last_report.desc&limit=50').catch(()=>[]);
+  if (!Array.isArray(rows) || !rows.length) {
+    document.getElementById('deadList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا توجد إبلاغات حتى الآن ✅</div>';
+    return;
+  }
+  document.getElementById('deadList').innerHTML = `<table class="admin-table">
+    <thead><tr><th>المحتوى</th><th>YouTube ID</th><th>التقارير</th><th>آخر إبلاغ</th><th>الإجراء</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td style="font-size:12px">${r.content_id||'—'}</td>
+      <td><a href="https://youtube.com/watch?v=${r.yt_id||''}" target="_blank" style="color:var(--accent);font-size:12px">${r.yt_id||'—'}</a></td>
+      <td><span class="badge ${r.reports>=3?'b-dead':'b-year'}">${r.reports||1}</span></td>
+      <td style="font-size:12px;color:var(--text-muted)">${new Date(r.last_report||r.created_at).toLocaleDateString('ar')}</td>
+      <td>
+        ${r.content_id?`<button onclick="hideContent('${r.content_id}')" class="btn btn-danger btn-xs">إخفاء</button>`:''}
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+/* ── Requests ── */
+async function loadRequests() {
+  const rows = await sb('content_requests?order=created_at.desc&limit=50').catch(()=>[]);
+  if (!Array.isArray(rows) || !rows.length) {
+    document.getElementById('requestsList').innerHTML = '<div style="color:var(--text-dim);padding:40px 0">لا توجد طلبات حتى الآن</div>';
+    return;
+  }
+  document.getElementById('requestsList').innerHTML = `<table class="admin-table">
+    <thead><tr><th>العنوان المطلوب</th><th>النوع</th><th>الأصل</th><th>ملاحظات</th><th>التاريخ</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td style="font-size:13px;font-weight:600">${r.title||''}</td>
+      <td><span class="badge ${r.type==='film'?'b-film':'b-ser'}">${r.type==='film'?'فيلم':'مسلسل'}</span></td>
+      <td style="font-size:12px">${r.origin||'—'}</td>
+      <td style="font-size:12px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.notes||'—'}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${new Date(r.created_at).toLocaleDateString('ar')}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+/* ── Logs ── */
+async function loadLogs() {
+  const logs = await sb('discovery_log?order=run_at.desc&limit=50').catch(()=>[]);
+  document.getElementById('logsList').innerHTML = Array.isArray(logs) && logs.length ? `
+    <table class="admin-table">
+      <thead><tr><th>التاريخ</th><th>الاستعلام</th><th>وُجد</th><th>مُستورد</th><th>تخطي</th></tr></thead>
+      <tbody>${logs.map(l=>`<tr>
+        <td style="font-size:12px;color:var(--text-muted)">${new Date(l.run_at).toLocaleString('ar')}</td>
+        <td style="font-size:12px">${l.query||''}</td>
+        <td><span class="badge b-ar">${l.found||0}</span></td>
+        <td><span class="badge b-complete">${l.imported||0}</span></td>
+        <td><span class="badge b-year">${l.skipped||0}</span></td>
+      </tr>`).join('')}</tbody>
+    </table>` : '<div style="color:var(--text-dim)">لا توجد سجلات بعد</div>';
+}
+
+/* ── Add film ── */
+async function addFilm() {
+  const ytId    = document.getElementById('f-ytId').value.trim();
+  const title   = document.getElementById('f-title').value.trim();
+  const origin  = document.getElementById('f-origin').value;
+  const language= document.getElementById('f-language').value;
+  const category= document.getElementById('f-category').value;
+  const year    = document.getElementById('f-year').value;
+  const msg     = document.getElementById('addFilmMsg');
+
+  if (!ytId || !title) { msg.style.display=''; msg.style.color='#f87171'; msg.textContent='YouTube ID والعنوان مطلوبان'; return; }
+
+  document.getElementById('addFilmBtn').disabled = true;
+  const r = await fetch(`/api/import?action=import-film`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ytId, title_ar: title, origin, language, category, year: year ? +year : null })
+  }).then(r=>r.json()).catch(e=>({ok:false,error:e.message}));
+
+  document.getElementById('addFilmBtn').disabled = false;
+  msg.style.display = '';
+  msg.style.color = r.ok ? '#4ade80' : '#f87171';
+  msg.textContent = r.ok ? `✅ تمت الإضافة: ${r.id}` : `❌ ${r.error||'خطأ'}`;
+}
+
+/* ── YouTube search ── */
+async function searchYT() {
+  const query = document.getElementById('yt-query').value.trim();
+  const type  = document.getElementById('yt-type').value;
+  if (!query) return;
+  document.getElementById('ytSearchBtn').textContent = '…';
+  document.getElementById('ytResults').innerHTML = '<div style="color:var(--text-dim)">جاري البحث…</div>';
+
+  const r = await fetch(`/api/import?action=search-youtube`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, max: 10, content_type: type })
+  }).then(r=>r.json()).catch(()=>({results:[]}));
+
+  document.getElementById('ytSearchBtn').textContent = '🔍 بحث';
+  document.getElementById('ytResults').innerHTML = (r.results||[]).map(item=>`
+    <div style="display:flex;gap:10px;padding:10px;background:var(--card);border-radius:6px;align-items:center">
+      <img src="${item.poster_url||''}" style="width:48px;aspect-ratio:2/3;object-fit:cover;border-radius:4px;background:var(--card2)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title||''}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${item.ytId} • ${item.duration_sec?Math.round(item.duration_sec/60)+'د':''}</div>
+      </div>
+      <button onclick="importYT('${item.ytId}','${encodeURIComponent(item.title_ar||item.title||'')}','${item.origin}','${item.language}','${item.year||''}','${item.poster_url||''}')" class="btn btn-primary btn-xs">استيراد</button>
+    </div>`).join('') || '<div style="color:var(--text-muted);font-size:13px">لا نتائج</div>';
+}
+
+async function importYT(ytId, title, origin, language, year, poster) {
+  const r = await fetch(`/api/import?action=import-film`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ytId, title_ar: decodeURIComponent(title), origin, language, year:year?+year:null, poster_url:poster||null })
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  alert(r.ok ? '✅ تمت الإضافة' : '❌ خطأ في الإضافة');
+}
+
+/* ── Call API with admin token ── */
+async function apiCall(endpoint, method, body) {
+  return fetch(`/api/${endpoint}`, {
+    method, headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  }).then(r=>r.json());
+}
+
+/* ── Debounce ── */
+function debounce(fn, delay) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), delay); };
+}
+
+document.getElementById('contentSearch').addEventListener('input', debounce(loadContent, 400));
+</script>
+</body>
+</html>

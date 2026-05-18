@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>بحث — الموسوعة ستريم</title>
+<meta name="description" content="ابحث في آلاف الأفلام والمسلسلات المتاحة على الموسوعة ستريم"/>
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
@@ -20,76 +21,147 @@
 <div class="search-hero">
   <div class="search-box">
     <span class="search-icon">🔍</span>
-    <input type="text" id="searchInput" placeholder="ابحث عن فيلم أو مسلسل…" autofocus autocomplete="off"/>
+    <input type="text" id="searchInput" placeholder="ابحث عن فيلم أو مسلسل…" autofocus autocomplete="off" spellcheck="false"/>
+    <button class="search-clear" id="clearBtn" style="display:none" title="مسح">✕</button>
+  </div>
+  <div class="search-tags" id="searchTags">
+    <span class="search-tag-label">تصفح:</span>
+    <button class="search-tag" onclick="quickSearch('أكشن')">أكشن</button>
+    <button class="search-tag" onclick="quickSearch('رومانسي')">رومانسي</button>
+    <button class="search-tag" onclick="quickSearch('دراما')">دراما</button>
+    <button class="search-tag" onclick="quickSearch('كوري')">كوري</button>
+    <button class="search-tag" onclick="quickSearch('تركي')">تركي</button>
+    <button class="search-tag" onclick="quickSearch('هندي')">هندي</button>
+    <button class="search-tag" onclick="quickSearch('مغربي')">مغربي</button>
+    <button class="search-tag" onclick="quickSearch('صيني')">صيني</button>
   </div>
   <div class="search-info" id="searchInfo"></div>
 </div>
 
 <div class="content-grid" id="results" style="padding-top:8px"></div>
 
+<div id="noResults" style="display:none">
+  <div class="empty">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-h">لا توجد نتائج</div>
+    <div class="empty-p">جرب كلمات مختلفة أو تصفح من <a href="films.html" style="color:var(--accent)">قائمة الأفلام</a></div>
+  </div>
+</div>
+
 <footer class="footer" style="margin-top:20px">
-  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+      <p class="footer-tagline">فهرس أفلام ومسلسلات مجاني</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">تصفح</div>
+      <div class="footer-links">
+        <a href="index.html"  class="footer-link">الرئيسية</a>
+        <a href="films.html"  class="footer-link">الأفلام</a>
+        <a href="series.html" class="footer-link">المسلسلات</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">قانوني</div>
+      <div class="footer-links">
+        <a href="legal.html"       class="footer-link">سياسة الخصوصية</a>
+        <a href="legal.html#dmca"  class="footer-link">DMCA</a>
+        <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+  </div>
 </footer>
 
 <script type="module">
 import { searchContent } from './js/api.js';
+import { gridCardHTML } from './js/utils.js';
 
-const input = document.getElementById('searchInput');
-const info  = document.getElementById('searchInfo');
-const grid  = document.getElementById('results');
+const input   = document.getElementById('searchInput');
+const info    = document.getElementById('searchInfo');
+const grid    = document.getElementById('results');
+const noRes   = document.getElementById('noResults');
+const clearBtn = document.getElementById('clearBtn');
 let timer;
 
-function originBadge(o) {
-  const m={turkish:'🇹🇷 تركي',indian:'🇮🇳 هندي',korean:'🇰🇷 كوري',moroccan:'🇲🇦 مغربي',american:'🇺🇸 أمريكي'};
-  const c={turkish:'b-tr',indian:'b-in',korean:'b-ko',moroccan:'b-ma',american:'b-us'};
-  return `<span class="badge ${c[o]||'b-ar'}">${m[o]||o}</span>`;
-}
-function typeBadge(t) {
-  return t==='film'
-    ? '<span class="badge b-film">فيلم</span>'
-    : '<span class="badge b-ser">مسلسل</span>';
+clearBtn.addEventListener('click', () => {
+  input.value = '';
+  input.focus();
+  clearBtn.style.display = 'none';
+  grid.innerHTML = '';
+  info.textContent = '';
+  noRes.style.display = 'none';
+  history.replaceState(null, '', location.pathname);
+});
+
+input.addEventListener('input', () => {
+  clearBtn.style.display = input.value ? '' : 'none';
+  clearTimeout(timer);
+  timer = setTimeout(() => doSearch(input.value), 380);
+});
+
+window.quickSearch = function(q) {
+  input.value = q;
+  clearBtn.style.display = '';
+  doSearch(q);
+  input.focus();
+};
+
+function renderSkeleton() {
+  grid.innerHTML = Array.from({length: 12}, () => `
+    <div class="grid-card skel-card">
+      <div class="skel" style="aspect-ratio:2/3;border-radius:var(--radius-sm)"></div>
+      <div class="g-body">
+        <div class="skel skel-line" style="width:80%;height:14px;margin-bottom:8px"></div>
+        <div class="skel skel-line" style="width:50%;height:12px"></div>
+      </div>
+    </div>`).join('');
+  noRes.style.display = 'none';
 }
 
 function renderResults(items, q) {
-  info.textContent = `${items.length} نتيجة للبحث عن "${q}"`;
   if (!items.length) {
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب كلمات مختلفة</div></div>`;
+    grid.innerHTML = '';
+    noRes.style.display = '';
+    info.textContent = `لا نتائج للبحث عن "${q}"`;
     return;
   }
-  grid.innerHTML = items.map(item => {
-    const href = item.type === 'film'
-      ? `watch.html?id=${encodeURIComponent(item.id)}`
-      : `series-detail.html?id=${encodeURIComponent(item.id)}`;
-    const thumb = item.poster_url
-      ? `<img class="g-thumb" src="${item.poster_url}" alt="${item.title_ar}" loading="lazy"/>`
-      : `<div class="g-thumb-ph">${item.type==='film'?'🎬':'📺'}</div>`;
-    return `<a href="${href}" class="grid-card">
-      ${thumb}
-      <div class="g-body">
-        <div class="g-title">${item.title_ar}</div>
-        <div class="g-badges">${typeBadge(item.type)}${originBadge(item.origin)}</div>
-      </div>
-    </a>`;
-  }).join('');
+  noRes.style.display = 'none';
+  info.textContent = `${items.length} نتيجة للبحث عن "${q}"`;
+  grid.innerHTML = items.map(item => gridCardHTML(item)).join('');
 }
 
 async function doSearch(q) {
-  if (q.trim().length < 2) { grid.innerHTML=''; info.textContent=''; return; }
-  grid.innerHTML = Array.from({length:8},()=>
-    `<div class="skel"><div class="skel-thumb"></div><div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div></div>`).join('');
-  const items = await searchContent(q.trim());
-  renderResults(items, q.trim());
+  const trimmed = q.trim();
+  if (trimmed.length < 2) {
+    grid.innerHTML = '';
+    info.textContent = '';
+    noRes.style.display = 'none';
+    return;
+  }
+  // Update URL without reload
+  history.replaceState(null, '', `?q=${encodeURIComponent(trimmed)}`);
+  renderSkeleton();
+  try {
+    const items = await searchContent(trimmed);
+    renderResults(items, trimmed);
+  } catch {
+    grid.innerHTML = '';
+    info.textContent = 'تعذر تحميل النتائج';
+  }
 }
 
-input.addEventListener('input', () => {
-  clearTimeout(timer);
-  timer = setTimeout(() => doSearch(input.value), 400);
-});
-
 // Pre-fill from URL
-const sp = new URLSearchParams(location.search);
+const sp   = new URLSearchParams(location.search);
 const preQ = sp.get('q');
-if (preQ) { input.value = preQ; doSearch(preQ); }
+if (preQ) {
+  input.value = preQ;
+  clearBtn.style.display = '';
+  doSearch(preQ);
+}
 </script>
 </body>
 </html>

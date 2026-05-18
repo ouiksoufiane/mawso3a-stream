@@ -4,22 +4,39 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>المسلسلات — الموسوعة ستريم</title>
+<meta name="description" content="مسلسلات تركية وهندية وكورية وصينية مدبلجة بالعربية. حلقات متجددة تلقائياً كل يوم."/>
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
-<nav class="nav solid">
+<nav class="nav solid" id="nav">
   <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
   <div class="nav-links">
     <a href="index.html"  class="nav-link">الرئيسية</a>
     <a href="series.html" class="nav-link active">المسلسلات</a>
     <a href="films.html"  class="nav-link">الأفلام</a>
   </div>
-  <div class="nav-right"><a href="search.html" class="nav-icon-btn keep">🔍</a></div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+    <div class="nav-hamburger" id="hamburger" onclick="toggleMenu()">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
 </nav>
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="index.html"  class="nav-link">🏠 الرئيسية</a>
+  <a href="series.html" class="nav-link active">📺 المسلسلات</a>
+  <a href="films.html"  class="nav-link">🎬 الأفلام</a>
+  <a href="search.html" class="nav-link">🔍 البحث</a>
+</div>
 
 <div class="page-hero">
-  <div class="page-title">📺 المسلسلات</div>
-  <div class="page-sub" id="pageCount">جاري التحميل…</div>
+  <div class="page-hero-inner">
+    <div>
+      <div class="page-title">📺 المسلسلات</div>
+      <div class="page-sub">مسلسلات مدبلجة من جميع أنحاء العالم</div>
+    </div>
+    <div class="page-count" id="pageCount">جاري التحميل…</div>
+  </div>
 </div>
 
 <div class="filters-wrap">
@@ -30,6 +47,7 @@
     <button class="filter-btn" data-k="origin" data-v="indian">🇮🇳 هندي</button>
     <button class="filter-btn" data-k="origin" data-v="korean">🇰🇷 كوري</button>
     <button class="filter-btn" data-k="origin" data-v="moroccan">🇲🇦 مغربي</button>
+    <button class="filter-btn" data-k="origin" data-v="chinese">🇨🇳 صيني</button>
   </div>
   <div class="filter-group">
     <span class="filter-label">اللغة</span>
@@ -57,48 +75,154 @@
 <div class="pagination" id="pager"></div>
 
 <footer class="footer">
-  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+      <div class="footer-desc">مكتبة مرئية عربية شاملة للأفلام والمسلسلات المدبلجة. تتجدد تلقائياً كل ساعات.</div>
+    </div>
+    <div>
+      <div class="footer-col-title">تصفح</div>
+      <div class="footer-links">
+        <a href="index.html" class="footer-link">الرئيسية</a>
+        <a href="films.html" class="footer-link">الأفلام</a>
+        <a href="series.html" class="footer-link">المسلسلات</a>
+        <a href="search.html" class="footer-link">البحث</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-title">المسلسلات</div>
+      <div class="footer-links">
+        <a href="series.html?origin=turkish" class="footer-link">🇹🇷 مسلسلات تركية</a>
+        <a href="series.html?origin=indian" class="footer-link">🇮🇳 مسلسلات هندية</a>
+        <a href="series.html?origin=korean" class="footer-link">🇰🇷 مسلسلات كورية</a>
+        <a href="series.html?origin=moroccan" class="footer-link">🇲🇦 محتوى مغربي</a>
+      </div>
+    </div>
+    <div>
+      <div class="footer-col-title">قانوني</div>
+      <div class="footer-links">
+        <a href="legal.html" class="footer-link">سياسة الخصوصية</a>
+        <a href="legal.html#dmca" class="footer-link">DMCA</a>
+        <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم — المحتوى متاح عبر مصادر عامة مشروعة.</div>
+    <div class="footer-legal">
+      <a href="legal.html">خصوصية</a>
+      <a href="legal.html#dmca">DMCA</a>
+    </div>
+  </div>
 </footer>
 
 <script type="module">
 import { getContent, countContent } from './js/api.js';
 import { gridCardHTML, skeletonGrid } from './js/utils.js';
 
+window.toggleMenu = function() {
+  document.getElementById('hamburger').classList.toggle('open');
+  document.getElementById('mobileMenu').classList.toggle('open');
+};
+
 const PER = 30;
 let S = { origin:'', language:'', category:'', order:'created_at.desc', page:0 };
-const sp = new URLSearchParams(location.search);
-['origin','language','category'].forEach(k => { if(sp.get(k)) S[k]=sp.get(k); });
+let loading = false;
 
-function sync() {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('on', b.dataset.v === S[b.dataset.k]));
+function readURL() {
+  const sp = new URLSearchParams(location.search);
+  S.origin   = sp.get('origin')   || '';
+  S.language = sp.get('language') || '';
+  S.category = sp.get('category') || '';
+  S.order    = sp.get('order')    || 'created_at.desc';
+  S.page     = parseInt(sp.get('page') || '0');
+  const sortEl = document.getElementById('sortSel');
+  if (sortEl) sortEl.value = S.order;
 }
-document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', () => { S[b.dataset.k]=b.dataset.v; S.page=0; sync(); load(); }));
-document.getElementById('sortSel').addEventListener('change', e => { S.order=e.target.value; S.page=0; load(); });
+
+function pushURL() {
+  const p = new URLSearchParams();
+  if (S.origin)   p.set('origin', S.origin);
+  if (S.language) p.set('language', S.language);
+  if (S.category) p.set('category', S.category);
+  if (S.order !== 'created_at.desc') p.set('order', S.order);
+  if (S.page > 0) p.set('page', S.page);
+  const qs = p.toString();
+  history.pushState({ ...S }, '', qs ? `?${qs}` : location.pathname);
+}
+
+function syncFilters() {
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === (S[b.dataset.k] || ''));
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(b => b.addEventListener('click', () => {
+  S[b.dataset.k] = b.dataset.v; S.page = 0;
+  syncFilters(); pushURL(); load();
+}));
+document.getElementById('sortSel').addEventListener('change', e => {
+  S.order = e.target.value; S.page = 0;
+  pushURL(); load();
+});
+window.addEventListener('popstate', e => {
+  if (e.state) Object.assign(S, e.state);
+  else readURL();
+  syncFilters();
+  document.getElementById('sortSel').value = S.order;
+  load();
+});
 
 async function load() {
+  if (loading) return;
+  loading = true;
   document.getElementById('grid').innerHTML = skeletonGrid(30);
-  const params = { type:'series', limit:PER, offset:S.page*PER, order:S.order };
-  if (S.origin)   params.origin   = S.origin;
-  if (S.language) params.language = S.language;
-  if (S.category) params.category = S.category;
-  const [items, total] = await Promise.all([getContent(params), countContent({type:'series',...(S.origin&&{origin:S.origin}),...(S.language&&{language:S.language}),...(S.category&&{category:S.category})})]);
-  document.getElementById('pageCount').textContent = `${total.toLocaleString('ar')} مسلسل`;
-  if (!items.length) {
-    document.getElementById('grid').innerHTML = `<div class="empty"><div class="empty-icon">📺</div><div class="empty-h">لا توجد نتائج</div><div class="empty-p">جرب تصفية أخرى</div></div>`;
-  } else {
-    document.getElementById('grid').innerHTML = items.map(gridCardHTML).join('');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  try {
+    const params = { type:'series', limit:PER, offset:S.page*PER, order:S.order };
+    const cParams = { type:'series' };
+    ['origin','language','category'].forEach(k => { if (S[k]) { params[k] = S[k]; cParams[k] = S[k]; } });
+    const [items, total] = await Promise.all([getContent(params), countContent(cParams)]);
+    document.getElementById('pageCount').textContent = `${total.toLocaleString('ar')} مسلسل`;
+    if (!items.length) {
+      document.getElementById('grid').innerHTML = `<div class="empty">
+        <span class="empty-icon">📺</span>
+        <div class="empty-h">لا توجد نتائج</div>
+        <div class="empty-p">جرب تصفية أخرى أو انتظر الإضافة التلقائية</div>
+        <a href="series.html" class="btn btn-ghost btn-sm" style="margin-top:8px">إعادة تعيين الفلاتر</a>
+      </div>`;
+    } else {
+      document.getElementById('grid').innerHTML = items.map(gridCardHTML).join('');
+    }
+    renderPager(total);
+  } catch {
+    document.getElementById('grid').innerHTML = `<div class="empty">
+      <span class="empty-icon">⚠️</span>
+      <div class="empty-h">خطأ في التحميل</div>
+      <button class="btn btn-ghost btn-sm" onclick="location.reload()" style="margin-top:8px">إعادة المحاولة</button>
+    </div>`;
+  } finally {
+    loading = false;
   }
-  const pages = Math.ceil(total/PER);
-  const pg = document.getElementById('pager');
-  if (pages<=1){pg.innerHTML='';return;}
-  const s=Math.max(0,S.page-2), e=Math.min(pages-1,S.page+2);
-  let h = S.page>0?`<button class="pg-btn" data-p="${S.page-1}">‹ السابق</button>`:'';
-  for(let i=s;i<=e;i++) h+=`<button class="pg-btn ${i===S.page?'on':''}" data-p="${i}">${i+1}</button>`;
-  if(S.page<pages-1) h+=`<button class="pg-btn" data-p="${S.page+1}">التالي ›</button>`;
-  pg.innerHTML=h;
-  pg.querySelectorAll('.pg-btn').forEach(b=>b.addEventListener('click',()=>{S.page=+b.dataset.p;load();window.scrollTo({top:0,behavior:'smooth'});}));
 }
-sync(); load();
+
+function renderPager(total) {
+  const pages = Math.ceil(total / PER);
+  const pg = document.getElementById('pager');
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  const s = Math.max(0, S.page - 2), e = Math.min(pages - 1, S.page + 2);
+  let h = S.page > 0 ? `<button class="pg-btn" data-p="${S.page-1}">‹ السابق</button>` : '';
+  if (s > 0) h += `<button class="pg-btn" data-p="0">1</button>${s > 1 ? '<span style="padding:0 4px;color:var(--text-muted)">…</span>' : ''}`;
+  for (let i = s; i <= e; i++) h += `<button class="pg-btn ${i===S.page?'on':''}" data-p="${i}">${i+1}</button>`;
+  if (e < pages - 1) h += `${e < pages-2?'<span style="padding:0 4px;color:var(--text-muted)">…</span>':''}<button class="pg-btn" data-p="${pages-1}">${pages}</button>`;
+  if (S.page < pages - 1) h += `<button class="pg-btn" data-p="${S.page+1}">التالي ›</button>`;
+  pg.innerHTML = h;
+  pg.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+    S.page = +b.dataset.p; pushURL(); load();
+  }));
+}
+
+readURL(); syncFilters(); load();
 </script>
 </body>
 </html>

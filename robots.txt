@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin.html
+Disallow: /node_modules/
+
+Sitemap: https://mawso3a-stream.vercel.app/sitemap.xml

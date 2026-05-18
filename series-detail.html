@@ -12,99 +12,177 @@
   <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
   <div class="nav-links">
     <a href="series.html" class="nav-link">← المسلسلات</a>
-    <a href="search.html" class="nav-link keep nav-search-btn" title="بحث">🔍</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn" title="بحث">🔍</a>
   </div>
 </nav>
 
 <div id="seriesHero" class="series-hero-wrap">
-  <div class="s-poster-ph">📺</div>
+  <div class="s-poster-wrap" id="sPosterWrap">
+    <div class="s-poster-ph">📺</div>
+  </div>
   <div class="s-info">
-    <div class="s-name" id="sName">جاري التحميل…</div>
+    <div class="s-name" id="sName">
+      <div class="skel skel-line" style="width:300px;height:32px"></div>
+    </div>
     <div class="s-orig" id="sOrig"></div>
     <div class="s-stats" id="sStats"></div>
     <div class="s-badges" id="sBadges"></div>
     <div class="s-desc" id="sDesc"></div>
+    <div class="s-actions" id="sActions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"></div>
   </div>
 </div>
 
 <div class="season-nav" id="seasonNav"></div>
-<div class="eps-grid" id="epsGrid"></div>
+<div class="eps-grid" id="epsGrid">
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+  <div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>
+</div>
 
-<footer class="footer">
-  <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+<footer class="footer" style="margin-top:48px">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+      <p class="footer-tagline">فهرس أفلام ومسلسلات مجاني</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">تصفح</div>
+      <div class="footer-links">
+        <a href="index.html"  class="footer-link">الرئيسية</a>
+        <a href="films.html"  class="footer-link">الأفلام</a>
+        <a href="series.html" class="footer-link">المسلسلات</a>
+        <a href="search.html" class="footer-link">البحث</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">قانوني</div>
+      <div class="footer-links">
+        <a href="legal.html"       class="footer-link">سياسة الخصوصية</a>
+        <a href="legal.html#dmca"  class="footer-link">DMCA</a>
+        <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal">
+      <a href="legal.html#dmca">DMCA</a>
+      <a href="legal.html#privacy">الخصوصية</a>
+    </div>
+  </div>
 </footer>
 
 <script type="module">
-import { getContentById, getEpisodes, getSeasons } from './js/api.js';
+import { getContentById, getEpisodes, getSeasons, reportDeadLink } from './js/api.js';
+import { originBadge, langBadge, FAV, toast, formatDuration, esc } from './js/utils.js';
 
 window.addEventListener('scroll', () => {
   document.getElementById('mainNav').classList.toggle('solid', scrollY > 60);
 });
 
-const sp   = new URLSearchParams(location.search);
-const id   = sp.get('id');
+const sp = new URLSearchParams(location.search);
+const id = sp.get('id');
 if (!id) { location.href = 'series.html'; }
 
-let currentSeason = null;
-
-function originLabel(o) {
-  const m = { turkish:'🇹🇷 تركي', indian:'🇮🇳 هندي', korean:'🇰🇷 كوري', moroccan:'🇲🇦 مغربي', american:'🇺🇸 أمريكي' };
-  const c = { turkish:'b-tr', indian:'b-in', korean:'b-ko', moroccan:'b-ma', american:'b-us' };
-  return `<span class="badge ${c[o]||'b-ar'} badge">${m[o]||o}</span>`;
-}
-function langLabel(l) {
-  const m = { darija:'🇲🇦 دارجة', ar_dubbed:'عربي مدبلج', fr_dubbed:'فرنسي مدبلج' };
-  return `<span class="badge b-ar">${m[l]||l}</span>`;
-}
 function statusInfo(avail, total) {
   if (!total) return { label:'حلقات مختارة', color:'#d4a020', bg:'rgba(212,160,32,.1)' };
-  const p = avail/total;
-  if (p>=0.85) return { label:'مكتملة ✓',   color:'#22c55e', bg:'rgba(34,197,94,.1)' };
-  if (p>=0.60) return { label:'شبه مكتملة', color:'#14b8a6', bg:'rgba(20,184,166,.1)' };
-  return              { label:'قيد الإكمال', color:'#e8a020', bg:'rgba(232,160,32,.1)' };
+  const p = avail / total;
+  if (p >= 0.85) return { label:'مكتملة ✓',   color:'#22c55e', bg:'rgba(34,197,94,.1)' };
+  if (p >= 0.60) return { label:'شبه مكتملة', color:'#14b8a6', bg:'rgba(20,184,166,.1)' };
+  return               { label:'قيد الإكمال', color:'#e8a020', bg:'rgba(232,160,32,.1)' };
 }
+
+function updateFavBtn(seriesId) {
+  const on = FAV.is(seriesId);
+  const btn = document.getElementById('seriesFavBtn');
+  if (!btn) return;
+  btn.innerHTML = on ? '❤️ في المفضلة' : '🤍 إضافة للمفضلة';
+  btn.title = on ? 'إزالة من المفضلة' : 'إضافة للمفضلة';
+}
+
+window.__toggleSeriesFav = function(seriesId) {
+  const on = FAV.toggle(seriesId);
+  updateFavBtn(seriesId);
+  toast(on ? '❤️ أضيف للمفضلة' : '🤍 أزيل من المفضلة', on ? 'success' : 'info');
+};
+
+window.__reportSeries = async function(seriesId) {
+  await reportDeadLink(seriesId, null);
+  toast('تم الإبلاغ. شكراً على مساعدتك! ✅', 'success');
+};
 
 async function loadSeries() {
   const series = await getContentById(id);
-  if (!series || series.type !== 'series') { location.href='series.html'; return; }
+  if (!series || series.type !== 'series') { location.href = 'series.html'; return; }
 
   document.title = `${series.title_ar} — الموسوعة ستريم`;
 
-  // Hero
-  const heroEl = document.getElementById('seriesHero');
-  const poster = series.poster_url
-    ? `<img class="s-poster" src="${series.poster_url}" alt="${series.title_ar}"/>`
-    : `<div class="s-poster-ph">📺</div>`;
-  heroEl.querySelector('.s-poster-ph, .s-poster').outerHTML = poster;
+  // Poster — safe replacement without outerHTML assignment
+  const posterWrap = document.getElementById('sPosterWrap');
+  if (series.poster_url) {
+    const img = document.createElement('img');
+    img.className = 's-poster';
+    img.src = series.poster_url;
+    img.alt = esc(series.title_ar);
+    posterWrap.innerHTML = '';
+    posterWrap.appendChild(img);
+  }
 
-  document.getElementById('sName').textContent  = series.title_ar;
+  document.getElementById('sName').textContent = series.title_ar;
   document.getElementById('sOrig').textContent  = series.title_orig || '';
+
   const st = statusInfo(series.avail_eps, series.total_eps);
   document.getElementById('sStats').innerHTML = `
-    <div class="s-stat"><strong>${series.avail_eps}</strong> حلقة متاحة</div>
+    <div class="s-stat"><strong>${series.avail_eps || 0}</strong> حلقة متاحة</div>
     ${series.total_eps ? `<div class="s-stat">من أصل <strong>${series.total_eps}</strong> حلقة</div>` : ''}
     ${series.year ? `<div class="s-stat">سنة <strong>${series.year}</strong></div>` : ''}
+    ${series.view_count ? `<div class="s-stat"><strong>${series.view_count.toLocaleString('ar-EG')}</strong> مشاهدة</div>` : ''}
   `;
+
   document.getElementById('sBadges').innerHTML = `
-    ${originLabel(series.origin)}
-    ${langLabel(series.language)}
+    ${originBadge(series.origin || 'other')}
+    ${langBadge(series.language || 'ar_dubbed')}
     <span class="s-status" style="color:${st.color};background:${st.bg}">${st.label}</span>
   `;
-  document.getElementById('sDesc').textContent = series.description || '';
+
+  if (series.description) {
+    document.getElementById('sDesc').textContent = series.description;
+  }
+
+  // Action buttons
+  const favOn = FAV.is(id);
+  document.getElementById('sActions').innerHTML = `
+    <button class="btn btn-ghost btn-sm" id="seriesFavBtn" onclick="window.__toggleSeriesFav('${esc(id)}')" title="${favOn?'إزالة من المفضلة':'إضافة للمفضلة'}">
+      ${favOn ? '❤️ في المفضلة' : '🤍 إضافة للمفضلة'}
+    </button>
+    <button class="report-btn" onclick="window.__reportSeries('${esc(id)}')">⚠️ إبلاغ</button>
+  `;
 
   // Seasons
   const seasons = await getSeasons(id);
   const nav = document.getElementById('seasonNav');
+
+  if (!seasons.length) {
+    document.getElementById('epsGrid').innerHTML = `
+      <div class="empty"><div class="empty-icon">📺</div><div class="empty-h">لا توجد حلقات بعد</div></div>`;
+    return;
+  }
+
   if (seasons.length <= 1) {
     nav.style.display = 'none';
     loadEpisodes(seasons[0] ?? null);
   } else {
     nav.innerHTML = seasons.map(s =>
-      `<button class="s-tab ${s===seasons[0]?'on':''}" data-s="${s}">الموسم ${s}</button>`
+      `<button class="s-tab ${s === seasons[0] ? 'on' : ''}" data-s="${s}">الموسم ${s}</button>`
     ).join('');
     nav.querySelectorAll('.s-tab').forEach(btn => {
       btn.addEventListener('click', () => {
-        nav.querySelectorAll('.s-tab').forEach(b=>b.classList.remove('on'));
+        nav.querySelectorAll('.s-tab').forEach(b => b.classList.remove('on'));
         btn.classList.add('on');
         loadEpisodes(+btn.dataset.s);
       });
@@ -115,22 +193,27 @@ async function loadSeries() {
 
 async function loadEpisodes(season) {
   const grid = document.getElementById('epsGrid');
-  grid.innerHTML = Array.from({length:6},()=>
-    `<div class="skel ep-card" style="height:62px;border-radius:var(--radius-sm)"></div>`).join('');
+  grid.innerHTML = Array.from({length: 6}, () =>
+    `<div class="skel" style="height:72px;border-radius:var(--radius-sm)"></div>`
+  ).join('');
+
   const eps = await getEpisodes(id, season);
+
   if (!eps.length) {
     grid.innerHTML = `<div style="color:var(--text-muted);font-size:14px;padding:20px 0">لا توجد حلقات في هذا الموسم بعد</div>`;
     return;
   }
+
   grid.innerHTML = eps.map(ep => {
     const darija = ep.darija_desc ? `<span class="badge b-ma">🇲🇦 دارجة</span>` : '';
-    const src = ep.source ? `<span class="badge b-ar">${ep.source}</span>` : '';
-    const url = `watch.html?episode=${encodeURIComponent(ep.id)}&series=${encodeURIComponent(id)}`;
+    const src    = ep.source      ? `<span class="badge b-ar">${esc(ep.source)}</span>` : '';
+    const dur    = ep.duration_sec ? `<span style="color:var(--text-dim)">${formatDuration(ep.duration_sec)}</span>` : '';
+    const url    = `watch.html?episode=${encodeURIComponent(ep.id)}&series=${encodeURIComponent(id)}`;
     return `<a href="${url}" class="ep-card">
       <div class="ep-num">${ep.episode ?? '—'}</div>
       <div class="ep-info">
-        <div class="ep-title">${ep.title_ar || `الحلقة ${ep.episode}`}</div>
-        <div class="ep-meta">${ep.duration_sec ? Math.round(ep.duration_sec/60)+'د ' : ''}الموسم ${ep.season||1}</div>
+        <div class="ep-title">${esc(ep.title_ar || `الحلقة ${ep.episode}`)}</div>
+        <div class="ep-meta">${dur} — الموسم ${ep.season || 1}</div>
         <div class="ep-badges">${darija}${src}</div>
       </div>
       <span style="color:var(--text-muted);font-size:18px">▶</span>
@@ -141,6 +224,8 @@ async function loadEpisodes(season) {
 loadSeries().catch(err => {
   console.error(err);
   document.getElementById('sName').textContent = 'تعذر تحميل المسلسل';
+  document.getElementById('epsGrid').innerHTML = `
+    <div class="empty"><div class="empty-icon">⚠️</div><div class="empty-h">تعذر تحميل الحلقات</div></div>`;
 });
 </script>
 </body>
