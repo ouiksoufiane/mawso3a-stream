@@ -18,11 +18,12 @@ async function sb(method, path, body, serviceKey) {
 
 function detectOrigin(title) {
   const t = title.toLowerCase();
-  if (/تركي|türk|turkish/.test(t))                    return 'turkish';
-  if (/هندي|hindi|bollywood|بوليوود/.test(t))          return 'indian';
-  if (/كوري|korean/.test(t))                           return 'korean';
-  if (/أمريكي|american|english/.test(t))               return 'american';
-  if (/مغربي|مغرب|maroc|darija|دارجة/.test(t))         return 'moroccan';
+  if (/تركي|türk|turkish|تركية/.test(t))                        return 'turkish';
+  if (/هندي|hindi|bollywood|بوليوود|هندية|بوليود/.test(t))       return 'indian';
+  if (/كوري|korean|كورية|k-drama|kdrama/.test(t))               return 'korean';
+  if (/أمريكي|american|هوليوود|hollywood|أمريكية/.test(t))       return 'american';
+  if (/مغربي|مغرب|maroc|darija|دارجة|مغربية/.test(t))           return 'moroccan';
+  if (/فرنسي|français|france/.test(t))                          return 'french';
   return 'other';
 }
 function detectLanguage(title) {

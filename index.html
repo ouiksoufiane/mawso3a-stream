@@ -4,13 +4,18 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>الموسوعة ستريم — أضخم مكتبة مرئية عربية</title>
-<meta name="description" content="مكتبة ضخمة من الأفلام والمسلسلات التركية والهندية والكورية مدبلجة بالعربية والدارجة المغربية. تتجدد تلقائياً."/>
+<meta name="description" content="مكتبة ضخمة من الأفلام والمسلسلات التركية والهندية والكورية والأمريكية مدبلجة بالعربية والدارجة المغربية. تتجدد تلقائياً."/>
 <meta property="og:title" content="الموسوعة ستريم"/>
 <meta property="og:description" content="أضخم مكتبة مرئية عربية — أفلام ومسلسلات مدبلجة"/>
 <link rel="stylesheet" href="css/main.css"/>
 <style>
   .hero-transition { animation: heroFade 1s ease; }
   @keyframes heroFade { from{opacity:0;transform:scale(1.04)} to{opacity:1;transform:scale(1)} }
+  .category-tabs { display:flex; gap:10px; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; margin-bottom:32px; }
+  .category-tabs::-webkit-scrollbar { display:none; }
+  .cat-tab { flex-shrink:0; padding:8px 20px; border-radius:20px; background:rgba(255,255,255,.07); color:var(--text-muted); font-size:13px; cursor:pointer; border:1px solid rgba(255,255,255,.1); transition:all .2s; white-space:nowrap; text-decoration:none; }
+  .cat-tab:hover,.cat-tab.active { background:var(--accent); color:#000; border-color:var(--accent); }
+  .section-divider { height:1px; background:rgba(255,255,255,.06); margin:8px 0 32px; }
 </style>
 </head>
 <body>
@@ -34,7 +39,7 @@
   <div class="hero-content">
     <div class="hero-eyebrow" id="heroEyebrow">🎬 أضخم مكتبة مرئية عربية</div>
     <h1 class="hero-title" id="heroTitle">كل الأفلام<br/>والمسلسلات<br/><mark>في مكان واحد</mark></h1>
-    <p class="hero-desc" id="heroDesc">تركية، هندية، كورية، أمريكية — مدبلجة بالعربية والدارجة. مكتبة تتجدد تلقائياً كل ساعة.</p>
+    <p class="hero-desc" id="heroDesc">تركية، هندية، كورية، أمريكية — مدبلجة بالعربية والدارجة. مكتبة تتجدد تلقائياً كل ٦ ساعات.</p>
     <div class="hero-actions" id="heroActions">
       <a href="films.html" class="btn btn-primary">🎬 تصفح الأفلام</a>
       <a href="series.html" class="btn btn-ghost">📺 المسلسلات</a>
@@ -51,6 +56,24 @@
   <div class="stat"><div class="stat-num">٥+</div><div class="stat-label">لغات مدبلجة</div></div>
 </div>
 
+<!-- CATEGORY QUICK FILTERS -->
+<div style="padding:0 24px;max-width:1600px;margin:0 auto">
+  <div class="category-tabs">
+    <a href="index.html"                       class="cat-tab active">الكل</a>
+    <a href="films.html?origin=turkish"        class="cat-tab">🇹🇷 تركي</a>
+    <a href="films.html?origin=indian"         class="cat-tab">🇮🇳 هندي</a>
+    <a href="films.html?origin=korean"         class="cat-tab">🇰🇷 كوري</a>
+    <a href="films.html?origin=american"       class="cat-tab">🇺🇸 أمريكي</a>
+    <a href="films.html?language=darija"       class="cat-tab">🇲🇦 دارجة</a>
+    <a href="series.html"                      class="cat-tab">📺 مسلسلات</a>
+    <a href="films.html"                       class="cat-tab">🎬 أفلام</a>
+    <a href="films.html?category=action"       class="cat-tab">💥 أكشن</a>
+    <a href="films.html?category=romance"      class="cat-tab">❤️ رومانسي</a>
+    <a href="films.html?category=comedy"       class="cat-tab">😂 كوميدي</a>
+    <a href="films.html?category=drama"        class="cat-tab">🎭 دراما</a>
+  </div>
+</div>
+
 <!-- CONTINUE WATCHING -->
 <div class="section" id="cwSection" style="display:none">
   <div class="sec-header">
@@ -61,7 +84,7 @@
   </div>
 </div>
 
-<!-- FEATURED -->
+<!-- FEATURED / TRENDING -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🔥</span> الأكثر مشاهدة</div>
@@ -73,6 +96,21 @@
     <button class="row-arrow left" onclick="scrollRow('rFeatured',1)">‹</button>
   </div>
 </div>
+
+<!-- NEW ADDITIONS -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🆕</span> أحدث الإضافات</div>
+    <a href="films.html" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rNew',-1)">›</button>
+    <div class="row-scroll" id="rNew"></div>
+    <button class="row-arrow left" onclick="scrollRow('rNew',1)">‹</button>
+  </div>
+</div>
+
+<div class="section-divider"></div>
 
 <!-- TURKISH SERIES -->
 <div class="section">
@@ -100,10 +138,25 @@
   </div>
 </div>
 
-<!-- BOLLYWOOD -->
+<div class="section-divider"></div>
+
+<!-- INDIAN SERIES -->
 <div class="section">
   <div class="sec-header">
-    <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> أفلام هندية بوليوود</div>
+    <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> مسلسلات هندية مدبلجة</div>
+    <a href="series.html?origin=indian" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rIndianSeries',-1)">›</button>
+    <div class="row-scroll" id="rIndianSeries"></div>
+    <button class="row-arrow left" onclick="scrollRow('rIndianSeries',1)">‹</button>
+  </div>
+</div>
+
+<!-- BOLLYWOOD FILMS -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> أفلام بوليوود مدبلجة</div>
     <a href="films.html?origin=indian" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
@@ -113,10 +166,12 @@
   </div>
 </div>
 
+<div class="section-divider"></div>
+
 <!-- KOREAN -->
 <div class="section">
   <div class="sec-header">
-    <div class="sec-title"><span class="sec-title-icon">🇰🇷</span> أفلام ومسلسلات كورية</div>
+    <div class="sec-title"><span class="sec-title-icon">🇰🇷</span> الدراما الكورية</div>
     <a href="films.html?origin=korean" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
@@ -126,8 +181,23 @@
   </div>
 </div>
 
+<!-- AMERICAN -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇺🇸</span> أفلام أمريكية مدبلجة</div>
+    <a href="films.html?origin=american" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rAmerican',-1)">›</button>
+    <div class="row-scroll" id="rAmerican"></div>
+    <button class="row-arrow left" onclick="scrollRow('rAmerican',1)">‹</button>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
 <!-- DARIJA -->
-<div class="section" style="padding-bottom:48px">
+<div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇲🇦</span> محتوى بالدارجة المغربية</div>
     <a href="films.html?language=darija" class="sec-more">عرض الكل ←</a>
@@ -139,38 +209,52 @@
   </div>
 </div>
 
+<!-- ACTION -->
+<div class="section" style="padding-bottom:48px">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">💥</span> أفلام أكشن ومغامرات</div>
+    <a href="films.html?category=action" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rAction',-1)">›</button>
+    <div class="row-scroll" id="rAction"></div>
+    <button class="row-arrow left" onclick="scrollRow('rAction',1)">‹</button>
+  </div>
+</div>
+
 <footer class="footer">
   <div class="footer-logo">الموسوعة <em>ستريم</em></div>
   <div class="footer-text">مكتبة مرئية عربية شاملة — تتجدد تلقائياً كل ٦ ساعات</div>
+  <div style="margin-top:8px;font-size:11px;color:var(--text-muted)">
+    <a href="films.html" style="color:inherit;margin:0 8px">أفلام</a>
+    <a href="series.html" style="color:inherit;margin:0 8px">مسلسلات</a>
+    <a href="search.html" style="color:inherit;margin:0 8px">بحث</a>
+  </div>
 </footer>
 
 <script type="module">
 import { getStats, getFeatured, getByOrigin, getContent } from './js/api.js';
-import { cardHTML, skeletonRow, animateCounter, CW, originBadge, langBadge } from './js/utils.js';
+import { cardHTML, skeletonRow, animateCounter, CW } from './js/utils.js';
 
-/* Nav scroll */
 const nav = document.getElementById('nav');
 window.addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 80), { passive: true });
 
-/* Row scroll arrows */
 window.scrollRow = function(id, dir) {
   const el = document.getElementById(id);
   if (el) el.scrollBy({ left: dir * 480, behavior: 'smooth' });
 };
 
-/* Skeleton for rows */
-function showSkel(id, n=8) {
+const ALL_ROWS = ['rFeatured','rNew','rTrSeries','rTrFilms','rIndianSeries','rIndian','rKorean','rAmerican','rDarija','rAction'];
+ALL_ROWS.forEach(id => {
   const el = document.getElementById(id);
-  if (el) el.innerHTML = skeletonRow(n);
-}
-['rFeatured','rTrSeries','rTrFilms','rIndian','rKorean','rDarija'].forEach(id => showSkel(id));
+  if (el) el.innerHTML = skeletonRow(8);
+});
 
 /* Continue watching */
 const cwItems = CW.getRecent(8);
 if (cwItems.length) {
   document.getElementById('cwSection').style.display = '';
-  const cwRow = document.getElementById('cwRow');
-  cwRow.innerHTML = cwItems.map(item => `
+  document.getElementById('cwRow').innerHTML = cwItems.map(item => `
     <a href="${item.href}" class="cw-card">
       <div class="cw-thumb-ph">▶</div>
       <div class="cw-progress"><div class="cw-progress-fill" style="width:${item.progress||30}%"></div></div>
@@ -182,33 +266,32 @@ if (cwItems.length) {
     </a>`).join('');
 }
 window.__removeCW = function(id, el) {
-  CW.remove(id);
-  el.remove();
-  const row = document.getElementById('cwRow');
-  if (!row.children.length) document.getElementById('cwSection').style.display = 'none';
+  CW.remove(id); el.remove();
+  if (!document.getElementById('cwRow').children.length) document.getElementById('cwSection').style.display = 'none';
 };
 
-/* Hero rotation */
+/* Hero */
 let heroItems = [], heroIdx = 0, heroTimer;
 function renderHero(item) {
   if (!item) return;
   const bg = document.getElementById('heroBg');
-  const href = item.type === 'series' ? `series-detail.html?id=${item.id}` : `watch.html?id=${item.id}`;
+  const href = item.type==='series' ? `series-detail.html?id=${item.id}` : `watch.html?id=${item.id}`;
   if (item.poster_url) {
     bg.style.backgroundImage = `url(${item.poster_url})`;
     bg.classList.remove('hero-default-bg');
     bg.classList.add('hero-transition');
     setTimeout(() => bg.classList.remove('hero-transition'), 1000);
   }
-  const eyebrow = item.type === 'series' ? '📺 مسلسل مميز' : '🎬 فيلم مميز';
-  const origin = { turkish:'🇹🇷 تركي', indian:'🇮🇳 هندي', korean:'🇰🇷 كوري', moroccan:'🇲🇦 مغربي', american:'🇺🇸 أمريكي' }[item.origin] || '';
-  document.getElementById('heroEyebrow').textContent = `${eyebrow} ${origin}`;
+  const flags = {turkish:'🇹🇷',indian:'🇮🇳',korean:'🇰🇷',american:'🇺🇸',moroccan:'🇲🇦'};
+  const origins = {turkish:'تركي',indian:'هندي',korean:'كوري',american:'أمريكي',moroccan:'مغربي'};
+  const flag = flags[item.origin]||'🌍';
+  const orig = origins[item.origin]||'';
+  document.getElementById('heroEyebrow').textContent = `${item.type==='series'?'📺 مسلسل':'🎬 فيلم'} ${flag} ${orig}`;
   document.getElementById('heroTitle').innerHTML = item.title_ar;
-  document.getElementById('heroDesc').textContent = item.description || (item.type==='series' ? `${item.avail_eps} حلقة متاحة` : '');
+  document.getElementById('heroDesc').textContent = item.description || (item.type==='series' ? `${item.avail_eps||''} حلقة متاحة` : '');
   document.getElementById('heroActions').innerHTML = `
-    <a href="${href}" class="btn btn-primary">▶ مشاهدة</a>
-    <a href="${item.type==='series'?'series.html':'films.html'}" class="btn btn-ghost">تصفح المزيد</a>
-  `;
+    <a href="${href}" class="btn btn-primary">▶ مشاهدة الآن</a>
+    <a href="${item.type==='series'?'series.html':'films.html'}" class="btn btn-ghost">تصفح المزيد</a>`;
 }
 function setHeroDots(n, active) {
   document.getElementById('heroDots').innerHTML = Array.from({length:n},(_,i)=>
@@ -216,64 +299,60 @@ function setHeroDots(n, active) {
 }
 window.__gotoHero = function(i) {
   clearInterval(heroTimer);
-  heroIdx = i;
-  renderHero(heroItems[i]);
-  setHeroDots(heroItems.length, i);
+  heroIdx = i; renderHero(heroItems[i]); setHeroDots(heroItems.length, i);
   heroTimer = setInterval(nextHero, 8000);
 };
 function nextHero() {
-  heroIdx = (heroIdx + 1) % heroItems.length;
-  renderHero(heroItems[heroIdx]);
-  setHeroDots(heroItems.length, heroIdx);
+  heroIdx = (heroIdx+1) % heroItems.length;
+  renderHero(heroItems[heroIdx]); setHeroDots(heroItems.length, heroIdx);
 }
 
-/* Render row */
+/* Render helper */
 function renderRow(id, items) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!items?.length) {
-    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:24px 0;white-space:nowrap">لا يوجد محتوى بعد — سيتم الإضافة تلقائياً قريباً</div>`;
+    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:24px 0">سيتم الإضافة قريباً…</div>`;
     return;
   }
   el.innerHTML = items.map(item => cardHTML(item)).join('');
 }
 
-/* Load everything */
+/* Load all rows in parallel */
 Promise.all([
   getStats(),
-  getFeatured({ limit: 14 }),
-  getByOrigin('turkish', 'series', 14),
-  getByOrigin('turkish', 'film', 14),
-  getByOrigin('indian',  'film', 14),
+  getFeatured({ limit: 16 }),
+  getContent({ order: 'created_at.desc', limit: 16 }),
+  getByOrigin('turkish', 'series', 16),
+  getByOrigin('turkish', 'film', 16),
+  getByOrigin('indian', 'series', 14),
+  getByOrigin('indian', 'film', 16),
   getContent({ origin: 'korean', limit: 14 }),
-  getContent({ language: 'darija', limit: 14 })
-]).then(([stats, featured, trSeries, trFilms, indian, korean, darija]) => {
+  getContent({ origin: 'american', limit: 16 }),
+  getContent({ language: 'darija', limit: 14 }),
+  getContent({ category: 'action', limit: 14 }),
+]).then(([stats, featured, newest, trSeries, trFilms, indianSeries, indian, korean, american, darija, action]) => {
   animateCounter(document.getElementById('sF'), stats.films);
   animateCounter(document.getElementById('sS'), stats.series);
   animateCounter(document.getElementById('sE'), stats.eps);
 
   renderRow('rFeatured', featured);
+  renderRow('rNew', newest);
   renderRow('rTrSeries', trSeries);
-  renderRow('rTrFilms',  trFilms);
-  renderRow('rIndian',   indian);
-  renderRow('rKorean',   korean);
-  renderRow('rDarija',   darija);
+  renderRow('rTrFilms', trFilms);
+  renderRow('rIndianSeries', indianSeries);
+  renderRow('rIndian', indian);
+  renderRow('rKorean', korean);
+  renderRow('rAmerican', american);
+  renderRow('rDarija', darija);
+  renderRow('rAction', action);
 
-  // Hero rotation
-  const heroPool = [...(featured||[]).slice(0,6)];
-  if (heroPool.length) {
-    heroItems = heroPool;
-    renderHero(heroItems[0]);
-    setHeroDots(heroItems.length, 0);
+  heroItems = [...(featured||[]).filter(x=>x.poster_url).slice(0,8)];
+  if (heroItems.length) {
+    renderHero(heroItems[0]); setHeroDots(heroItems.length, 0);
     if (heroItems.length > 1) heroTimer = setInterval(nextHero, 8000);
   }
-}).catch(err => {
-  console.error('Load error:', err);
-  ['rFeatured','rTrSeries','rTrFilms','rIndian','rKorean','rDarija'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:24px 0">جاري التحميل — تحقق من إعداد قاعدة البيانات</div>`;
-  });
-});
+}).catch(err => console.error('Load error:', err));
 </script>
 </body>
 </html>
