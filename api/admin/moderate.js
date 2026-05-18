@@ -35,9 +35,9 @@ async function sb(method, path, body, serviceKey) {
 }
 
 export default async function handler(req, res) {
-  const origin = req.headers['origin'] || '';
-  if (origin && ALLOWED_ORIGINS.has(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  const reqOrigin = req.headers['origin'] || '';
+  if (reqOrigin && ALLOWED_ORIGINS.has(reqOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST,GET,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization,Content-Type');
