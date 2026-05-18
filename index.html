@@ -5,32 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>الموسوعة ستريم — أضخم مكتبة مرئية عربية</title>
 <meta name="description" content="مكتبة ضخمة من الأفلام والمسلسلات التركية والهندية والكورية والأمريكية مدبلجة بالعربية والدارجة المغربية. تتجدد تلقائياً."/>
-<meta property="og:title" content="الموسوعة ستريم"/>
-<meta property="og:description" content="أضخم مكتبة مرئية عربية — أفلام ومسلسلات مدبلجة"/>
+<meta property="og:title"       content="الموسوعة ستريم — أضخم مكتبة مرئية عربية"/>
+<meta property="og:description" content="أفلام ومسلسلات مدبلجة — تركية، هندية، كورية، أمريكية، مغربية"/>
+<meta property="og:type"        content="website"/>
+<meta property="og:url"         content="https://mawso3a-stream.vercel.app/"/>
+<meta name="twitter:card"       content="summary_large_image"/>
 <link rel="manifest" href="/manifest.json"/>
-<meta name="theme-color" content="#0d0d0f"/>
+<meta name="theme-color" content="#080810"/>
 <link rel="stylesheet" href="css/main.css"/>
 <style>
-  .hero-transition { animation: heroFade 1s ease; }
-  @keyframes heroFade { from{opacity:0;transform:scale(1.04)} to{opacity:1;transform:scale(1)} }
-  .category-tabs { display:flex; gap:10px; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; margin-bottom:32px; }
-  .category-tabs::-webkit-scrollbar { display:none; }
-  .cat-tab { flex-shrink:0; padding:8px 20px; border-radius:20px; background:rgba(255,255,255,.07); color:var(--text-muted); font-size:13px; cursor:pointer; border:1px solid rgba(255,255,255,.1); transition:all .2s; white-space:nowrap; text-decoration:none; }
-  .cat-tab:hover,.cat-tab.active { background:var(--accent); color:#000; border-color:var(--accent); }
-  .section-divider { height:1px; background:rgba(255,255,255,.06); margin:8px 0 32px; }
+.hero-transition { animation:heroFade 1s ease both; }
+@keyframes heroFade { from{opacity:0;transform:scale(1.04)} to{opacity:1;transform:scale(1)} }
+.category-tabs { display:flex; gap:10px; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; margin-bottom:32px; }
+.category-tabs::-webkit-scrollbar { display:none; }
+.cat-tab { flex-shrink:0; padding:8px 20px; border-radius:20px; background:rgba(255,255,255,.06); color:var(--text-dim); font-size:13px; cursor:pointer; border:1px solid rgba(255,255,255,.08); transition:all .2s; white-space:nowrap; text-decoration:none; font-family:inherit; }
+.cat-tab:hover,.cat-tab.active { background:var(--accent); color:#000; border-color:var(--accent); box-shadow:0 4px 16px var(--accent-glow); }
+.section-divider { height:1px; background:var(--border); margin:8px 0 40px; }
 </style>
 </head>
 <body>
 
+<!-- NAV -->
 <nav class="nav" id="nav">
   <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
   <div class="nav-links">
     <a href="index.html"  class="nav-link active">الرئيسية</a>
     <a href="series.html" class="nav-link">المسلسلات</a>
     <a href="films.html"  class="nav-link">الأفلام</a>
+    <a href="search.html" class="nav-link">بحث</a>
   </div>
   <div class="nav-right">
     <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+    <a href="my-list.html" class="nav-icon-btn" title="قائمتي">♥</a>
     <div class="nav-hamburger" id="hamburger"
       onclick="document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobileMenu').classList.toggle('open')">
       <span></span><span></span><span></span>
@@ -42,6 +48,7 @@
   <a href="series.html" class="nav-link">📺 المسلسلات</a>
   <a href="films.html"  class="nav-link">🎬 الأفلام</a>
   <a href="search.html" class="nav-link">🔍 البحث</a>
+  <a href="my-list.html" class="nav-link">♥ قائمتي</a>
 </div>
 
 <!-- HERO -->
@@ -69,23 +76,22 @@
 </div>
 
 <!-- CATEGORY QUICK FILTERS -->
-<div style="padding:0 24px;max-width:1600px;margin:0 auto">
+<div style="padding:32px 48px 0;max-width:1600px;margin:0 auto">
   <div class="category-tabs">
-    <a href="index.html"                              class="cat-tab active">الكل</a>
-    <a href="category.html?origin=turkish"            class="cat-tab">🇹🇷 تركي</a>
-    <a href="category.html?origin=indian"             class="cat-tab">🇮🇳 هندي</a>
-    <a href="category.html?origin=korean"             class="cat-tab">🇰🇷 كوري</a>
-    <a href="category.html?origin=moroccan"           class="cat-tab">🇲🇦 مغربي</a>
-    <a href="category.html?origin=american"           class="cat-tab">🇺🇸 أمريكي</a>
-    <a href="category.html?origin=chinese"            class="cat-tab">🇨🇳 صيني</a>
-    <a href="category.html?language=darija"           class="cat-tab">🇲🇦 دارجة</a>
-    <a href="category.html?category=documentary"      class="cat-tab">🎥 وثائقي</a>
-    <a href="category.html?category=anime"            class="cat-tab">🎌 أنيمي</a>
-    <a href="category.html?category=action"           class="cat-tab">💥 أكشن</a>
-    <a href="category.html?category=romance"          class="cat-tab">❤️ رومانسي</a>
-    <a href="category.html?category=comedy"           class="cat-tab">😂 كوميدي</a>
-    <a href="category.html?preset=popular"            class="cat-tab">🔥 الأكثر مشاهدة</a>
-    <a href="category.html?preset=new"                class="cat-tab">🆕 أحدث الإضافات</a>
+    <a href="index.html"                                class="cat-tab active">الكل</a>
+    <a href="category.html?origin=turkish"              class="cat-tab">🇹🇷 تركي</a>
+    <a href="category.html?origin=indian"               class="cat-tab">🇮🇳 هندي</a>
+    <a href="category.html?origin=korean"               class="cat-tab">🇰🇷 كوري</a>
+    <a href="category.html?origin=moroccan"             class="cat-tab">🇲🇦 مغربي</a>
+    <a href="category.html?origin=american"             class="cat-tab">🇺🇸 أمريكي</a>
+    <a href="category.html?origin=chinese"              class="cat-tab">🇨🇳 صيني</a>
+    <a href="category.html?language=darija"             class="cat-tab">🇲🇦 دارجة</a>
+    <a href="category.html?category=documentary"        class="cat-tab">🎥 وثائقي</a>
+    <a href="category.html?category=action"             class="cat-tab">💥 أكشن</a>
+    <a href="category.html?category=romance"            class="cat-tab">❤️ رومانسي</a>
+    <a href="category.html?category=comedy"             class="cat-tab">😂 كوميدي</a>
+    <a href="top-10.html"                               class="cat-tab">🏆 أعلى 10</a>
+    <a href="new.html"                                  class="cat-tab">🆕 جديد</a>
   </div>
 </div>
 
@@ -99,35 +105,48 @@
   </div>
 </div>
 
-<!-- FEATURED / TRENDING -->
+<!-- TOP 10 اليوم -->
 <div class="section">
   <div class="sec-header">
-    <div class="sec-title"><span class="sec-title-icon">🔥</span> الأكثر مشاهدة</div>
-    <a href="films.html" class="sec-more">عرض الكل ←</a>
+    <div class="sec-title"><span class="sec-title-icon">🏆</span> أعلى 10 اليوم</div>
+    <a href="top-10.html" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rTop10',-1)">›</button>
+    <div class="row-scroll" id="rTop10"></div>
+    <button class="row-arrow left"  onclick="scrollRow('rTop10',1)">‹</button>
+  </div>
+</div>
+
+<!-- شائع الآن -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🔥</span> شائع الآن</div>
+    <a href="trending.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rFeatured',-1)">›</button>
     <div class="row-scroll" id="rFeatured"></div>
-    <button class="row-arrow left" onclick="scrollRow('rFeatured',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rFeatured',1)">‹</button>
   </div>
 </div>
 
-<!-- NEW ADDITIONS -->
+<!-- أضيف حديثاً -->
 <div class="section">
   <div class="sec-header">
-    <div class="sec-title"><span class="sec-title-icon">🆕</span> أحدث الإضافات</div>
-    <a href="films.html" class="sec-more">عرض الكل ←</a>
+    <div class="sec-title"><span class="sec-title-icon">🆕</span> أضيف حديثاً</div>
+    <a href="new.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rNew',-1)">›</button>
     <div class="row-scroll" id="rNew"></div>
-    <button class="row-arrow left" onclick="scrollRow('rNew',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rNew',1)">‹</button>
   </div>
 </div>
 
 <div class="section-divider"></div>
 
-<!-- TURKISH SERIES -->
+<!-- مسلسلات تركية -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇹🇷</span> مسلسلات تركية مدبلجة</div>
@@ -136,39 +155,39 @@
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rTrSeries',-1)">›</button>
     <div class="row-scroll" id="rTrSeries"></div>
-    <button class="row-arrow left" onclick="scrollRow('rTrSeries',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rTrSeries',1)">‹</button>
   </div>
 </div>
 
-<!-- TURKISH FILMS -->
+<!-- أفلام تركية -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇹🇷</span> أفلام تركية مدبلجة</div>
-    <a href="films.html?origin=turkish" class="sec-more">عرض الكل ←</a>
+    <a href="turkish-dubbed.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rTrFilms',-1)">›</button>
     <div class="row-scroll" id="rTrFilms"></div>
-    <button class="row-arrow left" onclick="scrollRow('rTrFilms',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rTrFilms',1)">‹</button>
   </div>
 </div>
 
 <div class="section-divider"></div>
 
-<!-- INDIAN SERIES -->
+<!-- هندي مدبلج -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> مسلسلات هندية مدبلجة</div>
-    <a href="series.html?origin=indian" class="sec-more">عرض الكل ←</a>
+    <a href="indian-dubbed.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rIndianSeries',-1)">›</button>
     <div class="row-scroll" id="rIndianSeries"></div>
-    <button class="row-arrow left" onclick="scrollRow('rIndianSeries',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rIndianSeries',1)">‹</button>
   </div>
 </div>
 
-<!-- BOLLYWOOD FILMS -->
+<!-- بوليوود -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇮🇳</span> أفلام بوليوود مدبلجة</div>
@@ -177,26 +196,26 @@
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rIndian',-1)">›</button>
     <div class="row-scroll" id="rIndian"></div>
-    <button class="row-arrow left" onclick="scrollRow('rIndian',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rIndian',1)">‹</button>
   </div>
 </div>
 
 <div class="section-divider"></div>
 
-<!-- KOREAN -->
+<!-- كوري -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇰🇷</span> الدراما الكورية</div>
-    <a href="films.html?origin=korean" class="sec-more">عرض الكل ←</a>
+    <a href="korean-dubbed.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rKorean',-1)">›</button>
     <div class="row-scroll" id="rKorean"></div>
-    <button class="row-arrow left" onclick="scrollRow('rKorean',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rKorean',1)">‹</button>
   </div>
 </div>
 
-<!-- AMERICAN -->
+<!-- أمريكي -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇺🇸</span> أفلام أمريكية مدبلجة</div>
@@ -205,26 +224,39 @@
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rAmerican',-1)">›</button>
     <div class="row-scroll" id="rAmerican"></div>
-    <button class="row-arrow left" onclick="scrollRow('rAmerican',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rAmerican',1)">‹</button>
   </div>
 </div>
 
 <div class="section-divider"></div>
 
-<!-- DARIJA -->
+<!-- بالدارجة -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇲🇦</span> محتوى بالدارجة المغربية</div>
-    <a href="films.html?language=darija" class="sec-more">عرض الكل ←</a>
+    <a href="darija.html" class="sec-more">عرض الكل ←</a>
   </div>
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rDarija',-1)">›</button>
     <div class="row-scroll" id="rDarija"></div>
-    <button class="row-arrow left" onclick="scrollRow('rDarija',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rDarija',1)">‹</button>
   </div>
 </div>
 
-<!-- CHINESE -->
+<!-- مغربي -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇲🇦</span> محتوى مغربي</div>
+    <a href="moroccan.html" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rMoroccan',-1)">›</button>
+    <div class="row-scroll" id="rMoroccan"></div>
+    <button class="row-arrow left"  onclick="scrollRow('rMoroccan',1)">‹</button>
+  </div>
+</div>
+
+<!-- صيني -->
 <div class="section">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">🇨🇳</span> دراما صينية مدبلجة</div>
@@ -233,12 +265,12 @@
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rChinese',-1)">›</button>
     <div class="row-scroll" id="rChinese"></div>
-    <button class="row-arrow left" onclick="scrollRow('rChinese',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rChinese',1)">‹</button>
   </div>
 </div>
 
-<!-- ACTION -->
-<div class="section" style="padding-bottom:48px">
+<!-- أكشن -->
+<div class="section" style="padding-bottom:56px">
   <div class="sec-header">
     <div class="sec-title"><span class="sec-title-icon">💥</span> أفلام أكشن ومغامرات</div>
     <a href="films.html?category=action" class="sec-more">عرض الكل ←</a>
@@ -246,10 +278,11 @@
   <div class="row-wrap">
     <button class="row-arrow right" onclick="scrollRow('rAction',-1)">›</button>
     <div class="row-scroll" id="rAction"></div>
-    <button class="row-arrow left" onclick="scrollRow('rAction',1)">‹</button>
+    <button class="row-arrow left"  onclick="scrollRow('rAction',1)">‹</button>
   </div>
 </div>
 
+<!-- FOOTER -->
 <footer class="footer">
   <div class="footer-grid">
     <div class="footer-col">
@@ -263,15 +296,17 @@
         <a href="films.html"  class="footer-link">الأفلام</a>
         <a href="series.html" class="footer-link">المسلسلات</a>
         <a href="search.html" class="footer-link">البحث</a>
+        <a href="my-list.html" class="footer-link">قائمتي</a>
       </div>
     </div>
     <div class="footer-col">
       <div class="footer-col-title">التصنيفات</div>
       <div class="footer-links">
-        <a href="films.html?origin=turkish"  class="footer-link">🇹🇷 تركي</a>
-        <a href="films.html?origin=korean"   class="footer-link">🇰🇷 كوري</a>
-        <a href="films.html?origin=indian"   class="footer-link">🇮🇳 هندي</a>
-        <a href="films.html?origin=moroccan" class="footer-link">🇲🇦 مغربي</a>
+        <a href="turkish-dubbed.html" class="footer-link">🇹🇷 تركي</a>
+        <a href="korean-dubbed.html"  class="footer-link">🇰🇷 كوري</a>
+        <a href="indian-dubbed.html"  class="footer-link">🇮🇳 هندي</a>
+        <a href="moroccan.html"       class="footer-link">🇲🇦 مغربي</a>
+        <a href="darija.html"         class="footer-link">🇲🇦 دارجة</a>
       </div>
     </div>
     <div class="footer-col">
@@ -280,6 +315,7 @@
         <a href="legal.html"       class="footer-link">سياسة الخصوصية</a>
         <a href="legal.html#dmca"  class="footer-link">DMCA</a>
         <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
+        <a href="request.html"     class="footer-link">طلب محتوى</a>
       </div>
     </div>
   </div>
@@ -292,19 +328,45 @@
   </div>
 </footer>
 
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <a href="index.html" class="mob-nav-item active" data-page="home">
+      <span class="mob-nav-icon">⌂</span>
+      <span class="mob-nav-label">الرئيسية</span>
+    </a>
+    <a href="films.html" class="mob-nav-item" data-page="films">
+      <span class="mob-nav-icon">🎬</span>
+      <span class="mob-nav-label">أفلام</span>
+    </a>
+    <a href="search.html" class="mob-nav-item" data-page="search">
+      <span class="mob-nav-icon">🔍</span>
+      <span class="mob-nav-label">بحث</span>
+    </a>
+    <a href="series.html" class="mob-nav-item" data-page="series">
+      <span class="mob-nav-icon">📺</span>
+      <span class="mob-nav-label">مسلسلات</span>
+    </a>
+    <a href="my-list.html" class="mob-nav-item" data-page="mylist">
+      <span class="mob-nav-icon">♥</span>
+      <span class="mob-nav-label">قائمتي</span>
+    </a>
+  </div>
+</nav>
+
 <script type="module">
 import { getStats, getFeatured, getByOrigin, getContent } from './js/api.js';
 import { cardHTML, skeletonRow, animateCounter, CW, esc } from './js/utils.js';
 
 const nav = document.getElementById('nav');
-window.addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 80), { passive: true });
+window.addEventListener('scroll', () => nav.classList.toggle('solid', scrollY > 80), { passive:true });
 
 window.scrollRow = function(id, dir) {
   const el = document.getElementById(id);
-  if (el) el.scrollBy({ left: dir * 480, behavior: 'smooth' });
+  if (el) el.scrollBy({ left:dir * 480, behavior:'smooth' });
 };
 
-const ALL_ROWS = ['rFeatured','rNew','rTrSeries','rTrFilms','rIndianSeries','rIndian','rKorean','rAmerican','rDarija','rChinese','rAction'];
+const ALL_ROWS = ['rTop10','rFeatured','rNew','rTrSeries','rTrFilms','rIndianSeries','rIndian','rKorean','rAmerican','rDarija','rMoroccan','rChinese','rAction'];
 ALL_ROWS.forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = skeletonRow(8);
@@ -315,7 +377,7 @@ const cwItems = CW.getRecent(8);
 if (cwItems.length) {
   document.getElementById('cwSection').style.display = '';
   document.getElementById('cwRow').innerHTML = cwItems.map(item => {
-    const safeHref = /^(watch|series-detail)\.html\?/.test(item.href||'') ? item.href : '#';
+    const safeHref = /^(watch|series-detail|film-detail)\.html\?/.test(item.href||'') ? item.href : '#';
     return `<a href="${esc(safeHref)}" class="cw-card">
       <div class="cw-thumb-ph">▶</div>
       <div class="cw-progress"><div class="cw-progress-fill" style="width:${+(item.progress||30)||30}%"></div></div>
@@ -337,7 +399,12 @@ let heroItems = [], heroIdx = 0, heroTimer;
 function renderHero(item) {
   if (!item) return;
   const bg = document.getElementById('heroBg');
-  const href = item.type==='series' ? `series-detail.html?id=${encodeURIComponent(item.id)}` : `watch.html?id=${encodeURIComponent(item.id)}`;
+  const href = item.type === 'series'
+    ? `series-detail.html?id=${encodeURIComponent(item.id)}`
+    : `watch.html?id=${encodeURIComponent(item.id)}`;
+  const detailHref = item.type === 'series'
+    ? `series-detail.html?id=${encodeURIComponent(item.id)}`
+    : `film-detail.html?id=${encodeURIComponent(item.id)}`;
   if (item.poster_url) {
     bg.style.backgroundImage = `url(${encodeURI(item.poster_url)})`;
     bg.classList.remove('hero-default-bg');
@@ -353,11 +420,12 @@ function renderHero(item) {
   document.getElementById('heroDesc').textContent = item.description || (item.type==='series' ? `${item.avail_eps||''} حلقة متاحة` : '');
   document.getElementById('heroActions').innerHTML = `
     <a href="${href}" class="btn btn-primary">▶ مشاهدة الآن</a>
-    <a href="${item.type==='series'?'series.html':'films.html'}" class="btn btn-ghost">تصفح المزيد</a>`;
+    <a href="${detailHref}" class="btn btn-ghost">ℹ معلومات</a>`;
 }
 function setHeroDots(n, active) {
-  document.getElementById('heroDots').innerHTML = Array.from({length:n},(_,i)=>
-    `<button class="hero-dot ${i===active?'on':''}" onclick="window.__gotoHero(${i})"></button>`).join('');
+  document.getElementById('heroDots').innerHTML = Array.from({length:n},(_,i) =>
+    `<button class="hero-dot ${i===active?'on':''}" onclick="window.__gotoHero(${i})"></button>`
+  ).join('');
 }
 window.__gotoHero = function(i) {
   clearInterval(heroTimer);
@@ -369,36 +437,44 @@ function nextHero() {
   renderHero(heroItems[heroIdx]); setHeroDots(heroItems.length, heroIdx);
 }
 
-/* Render helper */
 function renderRow(id, items) {
   const el = document.getElementById(id);
   if (!el) return;
   if (!items?.length) {
-    el.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:24px 0">سيتم الإضافة قريباً…</div>`;
+    el.innerHTML = `<div style="color:var(--text-dim);font-size:13px;padding:24px 0">سيتم الإضافة قريباً…</div>`;
     return;
   }
   el.innerHTML = items.map(item => cardHTML(item)).join('');
 }
 
-/* Load all rows in parallel */
+function renderTop10(items) {
+  const el = document.getElementById('rTop10');
+  if (!el) return;
+  if (!items?.length) { el.innerHTML = `<div style="color:var(--text-dim);font-size:13px;padding:24px 0">لا يوجد محتوى</div>`; return; }
+  el.innerHTML = items.slice(0,10).map((item,i) => cardHTML(item, i+1)).join('');
+}
+
 Promise.all([
   getStats(),
-  getFeatured({ limit: 16 }),
-  getContent({ order: 'created_at.desc', limit: 16 }),
-  getByOrigin('turkish', 'series', 16),
-  getByOrigin('turkish', 'film', 16),
-  getByOrigin('indian', 'series', 14),
-  getByOrigin('indian', 'film', 16),
-  getContent({ origin: 'korean', limit: 14 }),
-  getContent({ origin: 'american', limit: 16 }),
-  getContent({ language: 'darija', limit: 14 }),
-  getContent({ origin: 'chinese', limit: 14 }),
-  getContent({ category: 'action', limit: 14 }),
-]).then(([stats, featured, newest, trSeries, trFilms, indianSeries, indian, korean, american, darija, chinese, action]) => {
+  getFeatured({ limit:16 }),
+  getContent({ order:'created_at.desc', limit:16 }),
+  getByOrigin('turkish','series',16),
+  getByOrigin('turkish','film',16),
+  getByOrigin('indian','series',14),
+  getByOrigin('indian','film',16),
+  getContent({ origin:'korean', limit:14 }),
+  getContent({ origin:'american', limit:16 }),
+  getContent({ language:'darija', limit:14 }),
+  getContent({ origin:'moroccan', limit:14 }),
+  getContent({ origin:'chinese', limit:14 }),
+  getContent({ category:'action', limit:14 }),
+  getFeatured({ limit:10 }),
+]).then(([stats, featured, newest, trSeries, trFilms, indianSeries, indian, korean, american, darija, moroccan, chinese, action, top10]) => {
   animateCounter(document.getElementById('sF'), stats.films);
   animateCounter(document.getElementById('sS'), stats.series);
   animateCounter(document.getElementById('sE'), stats.eps);
 
+  renderTop10(top10);
   renderRow('rFeatured', featured);
   renderRow('rNew', newest);
   renderRow('rTrSeries', trSeries);
@@ -408,6 +484,7 @@ Promise.all([
   renderRow('rKorean', korean);
   renderRow('rAmerican', american);
   renderRow('rDarija', darija);
+  renderRow('rMoroccan', moroccan);
   renderRow('rChinese', chinese);
   renderRow('rAction', action);
 
@@ -418,10 +495,7 @@ Promise.all([
   }
 }).catch(err => console.error('Load error:', err));
 
-// Register service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 </script>
 </body>
 </html>

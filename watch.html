@@ -64,6 +64,17 @@
   </div>
 </div>
 
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <a href="index.html"  class="mob-nav-item" data-page="home"><span class="mob-nav-icon">⌂</span><span class="mob-nav-label">الرئيسية</span></a>
+    <a href="films.html"  class="mob-nav-item" data-page="films"><span class="mob-nav-icon">🎬</span><span class="mob-nav-label">أفلام</span></a>
+    <a href="search.html" class="mob-nav-item" data-page="search"><span class="mob-nav-icon">🔍</span><span class="mob-nav-label">بحث</span></a>
+    <a href="series.html" class="mob-nav-item" data-page="series"><span class="mob-nav-icon">📺</span><span class="mob-nav-label">مسلسلات</span></a>
+    <a href="my-list.html" class="mob-nav-item" data-page="mylist"><span class="mob-nav-icon">♥</span><span class="mob-nav-label">قائمتي</span></a>
+  </div>
+</nav>
+
 <footer class="footer" style="margin-top:48px">
   <div class="footer-bottom" style="border-top:none;padding-top:0">
     <div class="footer-copy">© 2025 الموسوعة ستريم</div>
@@ -277,7 +288,7 @@ async function loadEpisode(epId, serId) {
     ${ep.source ? `<span class="badge b-ar">${esc(ep.source)}</span>` : ''}
   `;
   const epSrcId = primarySource?.id || null;
-  document.getElementById('pActions').innerHTML = reportBtn(ep.id || serId, ep.yt_id, epSrcId);
+  document.getElementById('pActions').innerHTML = reportBtn(serId || ep.content_id || ep.id, ep.yt_id, epSrcId);
 
   if (ep.darija_desc) {
     document.getElementById('pExtra').innerHTML = `

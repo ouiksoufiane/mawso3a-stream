@@ -23,20 +23,22 @@ const ORIGIN_MAP = {
 const LANG_MAP = {
   darija:   { label:'🇲🇦 دارجة',      cls:'b-ma' },
   ar_dubbed:{ label:'عربي مدبلج',      cls:'b-ar' },
-  fr_dubbed:{ label:'🇫🇷 فرنسي مدبلج', cls:'b-fr' }
+  fr_dubbed:{ label:'🇫🇷 فرنسي مدبلج', cls:'b-fr' },
+  ar:       { label:'عربي',            cls:'b-ar' }
 };
 const CAT_MAP = {
   drama:'دراما', action:'أكشن', comedy:'كوميدي',
   horror:'رعب', romance:'رومانسي', 'sci-fi':'خيال علمي',
-  animation:'رسوم متحركة', documentary:'وثائقي', thriller:'إثارة'
+  animation:'رسوم متحركة', documentary:'وثائقي', thriller:'إثارة',
+  historical:'تاريخي', family:'عائلي', crime:'جريمة'
 };
 
 export function originBadge(o) {
-  const m = ORIGIN_MAP[o] || { label: esc(o), cls:'b-ar' };
+  const m = ORIGIN_MAP[o] || { label:esc(o), cls:'b-ar' };
   return `<span class="badge ${m.cls}">${m.label}</span>`;
 }
 export function langBadge(l) {
-  const m = LANG_MAP[l] || { label: esc(l), cls:'b-ar' };
+  const m = LANG_MAP[l] || { label:esc(l), cls:'b-ar' };
   return `<span class="badge ${m.cls}">${m.label}</span>`;
 }
 export function catBadge(c) {
@@ -62,6 +64,24 @@ export function newBadge(createdAt) {
 export function originLabel(o) { return ORIGIN_MAP[o]?.label || o; }
 export function langLabel(l)   { return LANG_MAP[l]?.label || l; }
 
+/* ── QUALITY BADGE ───────────────────────────────────────── */
+export function qualityBadge(item) {
+  if (!item) return '';
+  const qs = item.quality_score || 0;
+  if (qs >= 85) return '<span class="badge b-fhd">FHD</span>';
+  if (qs >= 60) return '<span class="badge b-hd">HD</span>';
+  return '';
+}
+
+/* ── SOURCE PLATFORM BADGE ───────────────────────────────── */
+export function sourceBadge(platform) {
+  if (!platform) return '';
+  const map = { youtube:'b-yt', dailymotion:'b-dm', vimeo:'b-ar', archive:'b-ar' };
+  const label = { youtube:'YouTube', dailymotion:'Dailymotion', vimeo:'Vimeo', archive:'Archive.org' };
+  const cls = map[platform] || 'b-ar';
+  return `<span class="badge ${cls}">${label[platform] || esc(platform)}</span>`;
+}
+
 /* ── CONTINUE WATCHING ───────────────────────────────────── */
 const CW_KEY  = 'mawso3a_cw_v2';
 const FAV_KEY = 'mawso3a_fav_v2';
@@ -71,7 +91,7 @@ export const CW = {
   save(item) {
     try {
       const cw = CW.getAll();
-      cw[item.id] = { ...item, lastWatched: Date.now() };
+      cw[item.id] = { ...item, lastWatched:Date.now() };
       const keys = Object.keys(cw).sort((a,b) => (cw[b].lastWatched||0) - (cw[a].lastWatched||0));
       if (keys.length > CW_MAX) keys.slice(CW_MAX).forEach(k => delete cw[k]);
       localStorage.setItem(CW_KEY, JSON.stringify(cw));
@@ -110,16 +130,14 @@ export const FAV = {
   getAll() {
     try { return JSON.parse(localStorage.getItem(FAV_KEY) || '{}'); } catch { return {}; }
   },
-  getIds() {
-    return Object.keys(FAV.getAll());
-  }
+  getIds() { return Object.keys(FAV.getAll()); }
 };
 
 /* ── TOAST ───────────────────────────────────────────────── */
 export function toast(msg, type = 'info', duration = 3000) {
   let container = document.getElementById('toasts');
   if (!container) {
-    container = Object.assign(document.createElement('div'), { id: 'toasts', className: 'toast-container' });
+    container = Object.assign(document.createElement('div'), { id:'toasts', className:'toast-container' });
     document.body.appendChild(container);
   }
   const el = document.createElement('div');
@@ -177,26 +195,46 @@ export function embedUrlFromYtId(ytId, autoplay = false) {
 
 /* ── PLATFORM LABEL ──────────────────────────────────────── */
 export function platformLabel(platform) {
-  const MAP = { youtube: '▶ YouTube', dailymotion: '▶ Dailymotion', vimeo: '▶ Vimeo', archive: '▶ Archive.org' };
+  const MAP = { youtube:'▶ YouTube', dailymotion:'▶ Dailymotion', vimeo:'▶ Vimeo', archive:'▶ Archive.org' };
   return MAP[platform] || platform;
 }
 
-/* ── CARD HTML (row/slider) ──────────────────────────────── */
-export function cardHTML(item) {
+/* ── FORMAT DURATION ─────────────────────────────────────── */
+export function formatDuration(sec) {
+  if (!sec) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}س ${m}د` : `${m} دقيقة`;
+}
+
+/* ── CARD HTML (row/slider) — ENHANCED WITH HOVER OVERLAY ── */
+export function cardHTML(item, rank = null) {
   const href  = itemHref(item);
   const title = esc(item.title_ar);
   const thumb = item.poster_url
-    ? `<img class="card-thumb" src="${esc(item.poster_url)}" alt="${title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=card-thumb-ph>${item.type==='series'?'📺':'🎬'}</div>'">`
+    ? `<img class="card-thumb" src="${esc(item.poster_url)}" alt="${title}" loading="lazy"
+         onerror="this.parentElement.innerHTML='<div class=card-thumb-ph>${item.type==='series'?'📺':'🎬'}</div>'">`
     : `<div class="card-thumb-ph">${item.type==='series'?'📺':'🎬'}</div>`;
   const nb = newBadge(item.created_at);
-  return `<a href="${href}" class="card">
+  const yr = item.year ? `<span class="badge b-year" style="font-size:9px">${item.year}</span>` : '';
+  const eps = item.type === 'series' && item.avail_eps
+    ? `<span class="badge b-ep">${item.avail_eps} حلقة</span>` : '';
+  const rankHtml = rank !== null
+    ? `<div class="card-rank">${rank}</div>` : '';
+
+  return `<a href="${href}" class="card${rank !== null ? ' has-rank' : ''}">
     ${thumb}
-    ${nb ? `<span class="card-corner-badge">${nb}</span>` : ''}
+    ${nb ? `<div class="card-corner-badge">${nb}</div>` : ''}
     <div class="card-play">▶</div>
+    ${rankHtml}
     <div class="card-overlay">
       <div class="card-info">
         <div class="card-title">${title}</div>
-        <div class="card-badges">${originBadge(item.origin)}${langBadge(item.language)}</div>
+        <div class="card-badges">
+          ${originBadge(item.origin)}
+          ${item.language && item.language !== 'ar_dubbed' ? langBadge(item.language) : ''}
+          ${yr}${eps}
+        </div>
       </div>
     </div>
     <div class="card-body">
@@ -206,44 +244,50 @@ export function cardHTML(item) {
   </a>`;
 }
 
-/* ── GRID CARD HTML (catalog pages) ─────────────────────── */
+/* ── GRID CARD HTML (catalog pages) — ENHANCED ───────────── */
 export function gridCardHTML(item) {
   const href   = itemHref(item);
   const isFav  = FAV.is(item.id);
   const title  = esc(item.title_ar);
   const thumb  = item.poster_url
-    ? `<img class="g-thumb" src="${esc(item.poster_url)}" alt="${title}" loading="lazy" onerror="this.parentElement.querySelector('.g-thumb-ph')?.style.setProperty('display','flex');this.remove()">`
+    ? `<img class="g-thumb" src="${esc(item.poster_url)}" alt="${title}" loading="lazy"
+         onerror="this.parentElement.querySelector('.g-thumb-ph')?.style.setProperty('display','flex');this.remove()">`
     : '';
   const eps    = item.type === 'series' ? epsBadge(item.avail_eps, item.total_eps) : '';
   const nb     = newBadge(item.created_at);
   const year   = item.year ? `<span class="badge b-year">${item.year}</span>` : '';
+  const lang   = item.language && item.language !== 'ar_dubbed' ? langBadge(item.language) : '';
+
   return `<a href="${href}" class="grid-card">
     ${thumb}
     <div class="g-thumb-ph" style="${item.poster_url?'display:none':''}">${item.type==='series'?'📺':'🎬'}</div>
     <div class="g-play">▶</div>
-    ${nb ? `<span class="card-corner-badge">${nb}</span>` : ''}
+    ${nb ? `<div class="card-corner-badge">${nb}</div>` : ''}
     <div class="g-overlay">
       <div class="g-info">
         <div class="g-info-title">${title}</div>
-        <div class="g-info-badges">${originBadge(item.origin)}${langBadge(item.language)}${eps}</div>
+        <div class="g-info-badges">
+          ${originBadge(item.origin)}${lang}${eps}
+          ${year}
+        </div>
       </div>
     </div>
     <button class="fav-btn ${isFav?'on':''}" data-id="${esc(item.id)}"
       title="${isFav?'إزالة من المفضلة':'إضافة للمفضلة'}"
-      onclick="event.preventDefault();window.__toggleFav(this,'${esc(item.id)}')">${isFav?'❤️':'🤍'}</button>
+      onclick="event.preventDefault();window.__toggleFav(this,'${esc(item.id)}')">${isFav?'♥':'♡'}</button>
     <div class="g-body">
       <div class="g-title">${title}</div>
-      <div class="g-badges">${originBadge(item.origin)}${langBadge(item.language)}${eps}${year}</div>
+      <div class="g-badges">${originBadge(item.origin)}${lang}${eps}${year}</div>
     </div>
   </a>`;
 }
 
 window.__toggleFav = function(btn, id) {
   const on = FAV.toggle(id);
-  btn.textContent = on ? '❤️' : '🤍';
+  btn.textContent = on ? '♥' : '♡';
   btn.classList.toggle('on', on);
   btn.title = on ? 'إزالة من المفضلة' : 'إضافة للمفضلة';
-  toast(on ? '❤️ أضيف للمفضلة' : '🤍 أزيل من المفضلة', on ? 'success' : 'info');
+  toast(on ? '♥ أضيف للمفضلة' : '♡ أزيل من المفضلة', on ? 'success' : 'info');
 };
 
 /* ── SKELETON LOADERS ────────────────────────────────────── */
@@ -254,21 +298,13 @@ export function skeletonGrid(n = 24) {
   ).join('');
 }
 
-export function skeletonRow(n = 8, width = '155px') {
+export function skeletonRow(n = 8, width = '170px') {
   return Array.from({length:n}, () => `
     <div class="skel card" style="width:${width}">
       <div class="skel-poster"></div>
       <div class="skel-body"><div class="skel-line"></div><div class="skel-line s"></div></div>
     </div>`
   ).join('');
-}
-
-/* ── DURATION FORMATTER ─────────────────────────────────── */
-export function formatDuration(sec) {
-  if (!sec) return '';
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  return h > 0 ? `${h}س ${m}د` : `${m} دقيقة`;
 }
 
 /* ── INFINITE SCROLL HELPER ─────────────────────────────── */
@@ -283,5 +319,12 @@ export function onScrollEnd(callback, threshold = 400) {
       }
       ticking = false;
     });
-  }, { passive: true });
+  }, { passive:true });
+}
+
+/* ── MOBILE NAV ACTIVE PAGE ──────────────────────────────── */
+export function setMobNavActive(page) {
+  document.querySelectorAll('.mob-nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
 }

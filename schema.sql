@@ -878,3 +878,12 @@ BEGIN
   RETURN v_reports;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ── V4: content_sources reliability tracking ──────────────────
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS fail_count INTEGER DEFAULT 0;
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS last_error_reason TEXT;
+
+-- Unique index for dead_links per source
+CREATE UNIQUE INDEX IF NOT EXISTS dead_links_source_unique
+  ON dead_links(source_id)
+  WHERE source_id IS NOT NULL;

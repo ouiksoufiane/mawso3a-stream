@@ -126,7 +126,7 @@ export async function incrementView(id) {
 
 // ── Content sources (multi-platform) ─────────────────────────
 export async function getContentSources(contentId, episodeId = null) {
-  let q = `content_sources?content_id=eq.${encodeURIComponent(contentId)}&active=eq.true&embeddable=eq.true&order=is_primary.desc,added_at.asc&select=*`;
+  let q = `content_sources?content_id=eq.${encodeURIComponent(contentId)}&is_working=eq.true&active=eq.true&embeddable=eq.true&order=is_primary.desc,added_at.asc&select=*`;
   if (episodeId) q += `&episode_id=eq.${encodeURIComponent(episodeId)}`;
   else q += '&episode_id=is.null';
   try { return await sbGet(q); } catch { return []; }

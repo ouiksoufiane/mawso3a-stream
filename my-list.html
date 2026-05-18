@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>قائمتي — الموسوعة ستريم</title>
+<meta name="description" content="قائمة المفضلة الخاصة بك على الموسوعة ستريم — أفلام ومسلسلات مدبلجة"/>
+<meta property="og:title" content="قائمتي — الموسوعة ستريم"/>
+<meta property="og:type"  content="website"/>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#080810"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid" id="nav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+    <a href="films.html"  class="nav-link">الأفلام</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<div class="cat-hero">
+  <span class="cat-hero-icon">♥</span>
+  <h1 class="cat-hero-title">قائمتي</h1>
+  <p class="cat-hero-sub">المحتوى الذي أضفته إلى المفضلة — يُحفظ في متصفحك</p>
+</div>
+
+<div class="content-grid" id="grid">
+  <div class="empty" id="emptyState" style="display:none">
+    <span class="empty-icon">♡</span>
+    <div class="empty-h">قائمتك فارغة</div>
+    <div class="empty-p">ابدأ بإضافة أفلام ومسلسلات من زر القلب ♥ على أي بطاقة</div>
+    <a href="index.html" class="btn btn-primary" style="margin-top:16px">تصفح المحتوى</a>
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <a href="index.html"  class="mob-nav-item" data-page="home"><span class="mob-nav-icon">⌂</span><span class="mob-nav-label">الرئيسية</span></a>
+    <a href="films.html"  class="mob-nav-item" data-page="films"><span class="mob-nav-icon">🎬</span><span class="mob-nav-label">أفلام</span></a>
+    <a href="search.html" class="mob-nav-item" data-page="search"><span class="mob-nav-icon">🔍</span><span class="mob-nav-label">بحث</span></a>
+    <a href="series.html" class="mob-nav-item" data-page="series"><span class="mob-nav-icon">📺</span><span class="mob-nav-label">مسلسلات</span></a>
+    <a href="my-list.html" class="mob-nav-item active" data-page="mylist"><span class="mob-nav-icon">♥</span><span class="mob-nav-label">قائمتي</span></a>
+  </div>
+</nav>
+
+<footer class="footer">
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal">
+      <a href="index.html">الرئيسية</a>
+      <a href="legal.html#dmca">DMCA</a>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import { getContentById } from './js/api.js';
+import { gridCardHTML, FAV, toast } from './js/utils.js';
+
+const grid = document.getElementById('grid');
+const emptyState = document.getElementById('emptyState');
+
+async function load() {
+  const ids = FAV.getIds();
+  if (!ids.length) {
+    emptyState.style.display = '';
+    return;
+  }
+
+  // Load all favs in parallel (batches of 10 to avoid overloading)
+  const results = await Promise.all(ids.map(id => getContentById(id).catch(() => null)));
+  const items = results.filter(Boolean);
+
+  if (!items.length) {
+    emptyState.style.display = '';
+    return;
+  }
+
+  grid.innerHTML = items.map(item => gridCardHTML(item)).join('');
+}
+
+load();
+</script>
+</body>
+</html>

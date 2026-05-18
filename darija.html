@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>بالدارجة المغربية — الموسوعة ستريم</title>
+<meta name="description" content="أفلام ومسلسلات مدبلجة أو مصوّرة بالدارجة المغربية على الموسوعة ستريم"/>
+<meta property="og:title" content="بالدارجة المغربية — الموسوعة ستريم"/>
+<meta property="og:type"  content="website"/>
+<link rel="canonical" href="https://mawso3a-stream.vercel.app/darija.html"/>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#080810"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid" id="nav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+    <a href="films.html"  class="nav-link">الأفلام</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<div class="cat-hero">
+  <span class="cat-hero-icon">🇲🇦</span>
+  <h1 class="cat-hero-title">محتوى بالدارجة</h1>
+  <p class="cat-hero-sub">أفلام ومسلسلات مدبلجة أو مصوّرة بالدارجة المغربية</p>
+</div>
+
+<div class="content-grid" id="grid"></div>
+<div class="pagination" id="pager"></div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <a href="index.html"  class="mob-nav-item" data-page="home"><span class="mob-nav-icon">⌂</span><span class="mob-nav-label">الرئيسية</span></a>
+    <a href="films.html"  class="mob-nav-item" data-page="films"><span class="mob-nav-icon">🎬</span><span class="mob-nav-label">أفلام</span></a>
+    <a href="search.html" class="mob-nav-item" data-page="search"><span class="mob-nav-icon">🔍</span><span class="mob-nav-label">بحث</span></a>
+    <a href="series.html" class="mob-nav-item" data-page="series"><span class="mob-nav-icon">📺</span><span class="mob-nav-label">مسلسلات</span></a>
+    <a href="my-list.html" class="mob-nav-item" data-page="mylist"><span class="mob-nav-icon">♥</span><span class="mob-nav-label">قائمتي</span></a>
+  </div>
+</nav>
+
+<footer class="footer">
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal"><a href="index.html">الرئيسية</a><a href="legal.html#dmca">DMCA</a></div>
+  </div>
+</footer>
+
+<script type="module">
+import { getContent, countContent } from './js/api.js';
+import { gridCardHTML, skeletonGrid } from './js/utils.js';
+
+const PER = 30;
+let page = 0;
+let loading = false;
+
+async function load() {
+  if (loading) return;
+  loading = true;
+  const grid = document.getElementById('grid');
+  grid.innerHTML = skeletonGrid(PER);
+  window.scrollTo({ top:0, behavior:'smooth' });
+  try {
+    const [items, total] = await Promise.all([
+      getContent({ language:'darija', order:'view_count.desc', limit:PER, offset:page*PER }),
+      countContent({ language:'darija' })
+    ]);
+    if (!items.length) {
+      grid.innerHTML = `<div class="empty"><span class="empty-icon">🇲🇦</span><div class="empty-h">لا يوجد محتوى بالدارجة بعد</div></div>`;
+    } else {
+      grid.innerHTML = items.map(i => gridCardHTML(i)).join('');
+    }
+    renderPager(total);
+  } catch {
+    grid.innerHTML = `<div class="empty"><span class="empty-icon">⚠️</span><div class="empty-h">تعذر التحميل</div></div>`;
+  } finally { loading = false; }
+}
+
+function renderPager(total) {
+  const pages = Math.ceil(total / PER);
+  const pg = document.getElementById('pager');
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  let h = page > 0 ? `<button class="pg-btn" data-p="${page-1}">‹ السابق</button>` : '';
+  const s = Math.max(0, page-2), e = Math.min(pages-1, page+2);
+  for (let i = s; i <= e; i++) h += `<button class="pg-btn ${i===page?'on':''}" data-p="${i}">${i+1}</button>`;
+  if (page < pages-1) h += `<button class="pg-btn" data-p="${page+1}">التالي ›</button>`;
+  pg.innerHTML = h;
+  pg.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => { page = +b.dataset.p; load(); }));
+}
+
+load();
+</script>
+</body>
+</html>

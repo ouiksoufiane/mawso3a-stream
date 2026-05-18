@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>أعلى 10 مشاهدةً — الموسوعة ستريم</title>
+<meta name="description" content="أكثر 10 أفلام ومسلسلات مشاهدة على الموسوعة ستريم"/>
+<meta property="og:title" content="أعلى 10 مشاهدةً — الموسوعة ستريم"/>
+<meta property="og:type"  content="website"/>
+<link rel="canonical" href="https://mawso3a-stream.vercel.app/top-10.html"/>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#080810"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid" id="nav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+    <a href="films.html"  class="nav-link">الأفلام</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<div class="cat-hero">
+  <span class="cat-hero-icon">🏆</span>
+  <h1 class="cat-hero-title">أعلى 10 مشاهدةً</h1>
+  <p class="cat-hero-sub">الأفلام والمسلسلات الأكثر مشاهدة على المنصة</p>
+</div>
+
+<div class="content-grid" id="grid" style="padding-top:8px"></div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="mob-nav" id="mobNav">
+  <div class="mob-nav-inner">
+    <a href="index.html"  class="mob-nav-item" data-page="home"><span class="mob-nav-icon">⌂</span><span class="mob-nav-label">الرئيسية</span></a>
+    <a href="films.html"  class="mob-nav-item" data-page="films"><span class="mob-nav-icon">🎬</span><span class="mob-nav-label">أفلام</span></a>
+    <a href="search.html" class="mob-nav-item" data-page="search"><span class="mob-nav-icon">🔍</span><span class="mob-nav-label">بحث</span></a>
+    <a href="series.html" class="mob-nav-item" data-page="series"><span class="mob-nav-icon">📺</span><span class="mob-nav-label">مسلسلات</span></a>
+    <a href="my-list.html" class="mob-nav-item" data-page="mylist"><span class="mob-nav-icon">♥</span><span class="mob-nav-label">قائمتي</span></a>
+  </div>
+</nav>
+
+<footer class="footer">
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal"><a href="index.html">الرئيسية</a><a href="legal.html#dmca">DMCA</a></div>
+  </div>
+</footer>
+
+<script type="module">
+import { getFeatured } from './js/api.js';
+import { gridCardHTML, skeletonGrid } from './js/utils.js';
+
+const grid = document.getElementById('grid');
+grid.innerHTML = skeletonGrid(10);
+
+getFeatured({ limit:10 }).then(items => {
+  if (!items?.length) {
+    grid.innerHTML = `<div class="empty"><span class="empty-icon">🏆</span><div class="empty-h">لا توجد بيانات بعد</div></div>`;
+    return;
+  }
+  grid.innerHTML = items.map(item => gridCardHTML(item)).join('');
+}).catch(() => {
+  grid.innerHTML = `<div class="empty"><span class="empty-icon">⚠️</span><div class="empty-h">تعذر التحميل</div></div>`;
+});
+</script>
+</body>
+</html>
