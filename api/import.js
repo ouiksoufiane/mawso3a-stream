@@ -191,8 +191,11 @@ export default async function handler(req, res) {
 
   // ── IMPORT SERIES (create/update metadata) ────────
   if (req.method === 'POST' && action === 'import-series') {
-    const { id, title_ar, title_orig, origin, language, category, total_eps, poster_url, description, year } = req.body;
+    let { id, title_ar, title_orig, origin, language, category, total_eps, poster_url, description, year } = req.body;
     if (!id || !title_ar) return res.status(400).json({ error: 'id and title_ar required' });
+    // Ensure ID is ASCII-safe (remove non-ASCII characters)
+    id = id.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'series_' + Date.now();
+    if (!id.startsWith('series_')) id = 'series_' + id;
     const r = await sb('POST', 'content', {
       id, type: 'series', title_ar, title_orig: title_orig || null,
       origin: origin || 'other', language: language || 'ar_dubbed',
