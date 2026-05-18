@@ -121,9 +121,6 @@ export default async function handler(req, res) {
     const successRate = found > 0 ? Math.round((imported / found) * 100 * 100) / 100 : 0;
     await sb('PATCH', `keyword_queue?keyword=eq.${encodeURIComponent(keyword)}`, {
       last_run_at: new Date().toISOString(),
-      run_count: null, // incremented via SQL below — just timestamp for now
-      total_found: null,
-      total_imported: null,
       success_rate: successRate
     }, SVC);
     // Log performance

@@ -233,9 +233,10 @@ export default async function handler(req, res) {
   // ── IMPORT SERIES (manual, explicit id) ───────────
   if (req.method === 'POST' && action === 'import-series') {
     let { id, title_ar, title_orig, origin, language, category, total_eps, poster_url, description, year } = req.body || {};
-    if (!id || !title_ar) return res.status(400).json({ error: 'id and title_ar required' });
-    id = id.replace(/[^\x00-\x7F]/g, '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'series_' + Date.now();
-    if (!id.startsWith('series_')) id = 'series_' + id;
+    if (!title_ar) return res.status(400).json({ error: 'title_ar required' });
+    // Sanitize explicit id; fall back to slugifySeries so Arabic titles get stable IDs
+    const rawId = (id || '').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+    id = rawId ? (rawId.startsWith('series_') ? rawId : `series_${rawId}`) : slugifySeries(title_ar);
     const r = await sb('POST', 'content', {
       id, type: 'series',
       title_ar:    cleanTitle(title_ar),

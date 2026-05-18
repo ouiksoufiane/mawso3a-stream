@@ -504,18 +504,30 @@ CREATE TABLE IF NOT EXISTS keyword_performance (
 
 -- Multi-source support (multiple platforms per content item)
 CREATE TABLE IF NOT EXISTS content_sources (
-  id          SERIAL PRIMARY KEY,
-  content_id  TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
-  platform    TEXT NOT NULL,
-  platform_id TEXT NOT NULL,
-  embed_url   TEXT,
-  quality     TEXT DEFAULT 'hd',
-  is_primary  BOOLEAN DEFAULT false,
-  embeddable  BOOLEAN DEFAULT true,
-  active      BOOLEAN DEFAULT true,
-  added_at    TIMESTAMPTZ DEFAULT NOW(),
+  id              SERIAL PRIMARY KEY,
+  content_id      TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  episode_id      TEXT REFERENCES episodes(id) ON DELETE CASCADE,
+  platform        TEXT NOT NULL,
+  platform_id     TEXT NOT NULL,
+  embed_url       TEXT,
+  source_url      TEXT,
+  quality         TEXT DEFAULT 'hd',
+  language        TEXT DEFAULT 'ar_dubbed',
+  is_primary      BOOLEAN DEFAULT false,
+  embeddable      BOOLEAN DEFAULT true,
+  is_working      BOOLEAN DEFAULT true,
+  active          BOOLEAN DEFAULT true,
+  last_checked_at TIMESTAMPTZ,
+  added_at        TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(content_id, platform, platform_id)
 );
+
+-- Migrations for existing content_sources (idempotent)
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS episode_id      TEXT REFERENCES episodes(id) ON DELETE CASCADE;
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS source_url      TEXT;
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS language        TEXT DEFAULT 'ar_dubbed';
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS is_working      BOOLEAN DEFAULT true;
+ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMPTZ;
 
 -- ─────────────────────────────────────────
 -- RLS FOR NEW TABLES
@@ -613,3 +625,125 @@ INSERT INTO keyword_queue (keyword, lang, category, priority) VALUES
   ('korean drama arabic subtitles', 'en', 'drama',       5),
   ('arabic movie full hd free',     'en', 'drama',       6)
 ON CONFLICT (keyword) DO NOTHING;
+
+-- ─────────────────────────────────────────
+-- ADDITIONAL SQL FUNCTIONS (V2 Pipeline)
+-- ─────────────────────────────────────────
+
+-- Refresh series status: active if has episodes, incomplete if 0
+CREATE OR REPLACE FUNCTION refresh_series_status(p_content_id TEXT)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE content
+  SET
+    avail_eps = (SELECT COUNT(*) FROM episodes WHERE content_id = p_content_id),
+    status = CASE
+      WHEN (SELECT COUNT(*) FROM episodes WHERE content_id = p_content_id) > 0 THEN 'active'
+      ELSE 'incomplete'
+    END,
+    updated_at = NOW()
+  WHERE id = p_content_id AND type = 'series';
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Recalculate quality_score from content_sources
+CREATE OR REPLACE FUNCTION update_quality_score(p_content_id TEXT)
+RETURNS VOID AS $$
+DECLARE
+  v_working  INTEGER;
+  v_total    INTEGER;
+  v_score    INTEGER;
+BEGIN
+  SELECT
+    COUNT(*) FILTER (WHERE is_working = true AND embeddable = true),
+    COUNT(*)
+  INTO v_working, v_total
+  FROM content_sources
+  WHERE content_id = p_content_id AND active = true;
+
+  v_score := CASE
+    WHEN v_total = 0 THEN 0
+    WHEN v_working = v_total THEN 100
+    ELSE ROUND((v_working::NUMERIC / v_total) * 100)
+  END;
+
+  UPDATE content SET quality_score = v_score, updated_at = NOW()
+  WHERE id = p_content_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Mark a content_source as dead (not working)
+CREATE OR REPLACE FUNCTION mark_source_dead(p_source_id INTEGER)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE content_sources
+  SET is_working = false, last_checked_at = NOW()
+  WHERE id = p_source_id;
+
+  -- Update quality score for parent content
+  PERFORM update_quality_score(content_id)
+  FROM content_sources WHERE id = p_source_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Atomically publish a candidate to content table
+CREATE OR REPLACE FUNCTION publish_candidate(p_candidate_id TEXT)
+RETURNS TEXT AS $$
+DECLARE
+  c          discovery_candidates%ROWTYPE;
+  v_content_id TEXT;
+  v_ytid       TEXT;
+  v_status     TEXT;
+BEGIN
+  SELECT * INTO c FROM discovery_candidates WHERE id = p_candidate_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Candidate % not found', p_candidate_id; END IF;
+  IF c.status NOT IN ('approved', 'pending_review') THEN
+    RAISE EXCEPTION 'Candidate status is %, must be approved or pending_review', c.status;
+  END IF;
+
+  v_content_id := c.platform || '_' || c.platform_id;
+  v_ytid := CASE WHEN c.platform = 'archive' THEN 'arc_' || c.platform_id ELSE c.platform_id END;
+  v_status := CASE WHEN c.quality_score >= 85 THEN 'active' ELSE 'pending' END;
+
+  INSERT INTO content (
+    id, type, title_ar, language, origin, category,
+    poster_url, yt_id, year, duration_sec, embeddable,
+    quality_score, primary_platform, status, source_count
+  ) VALUES (
+    v_content_id, c.type, COALESCE(c.title_ar, c.title_raw), c.language, c.origin, c.category,
+    c.poster_url, v_ytid, c.year, c.duration_sec, true,
+    c.quality_score, c.platform, v_status, 1
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  UPDATE discovery_candidates SET status = 'published' WHERE id = p_candidate_id;
+  RETURN v_content_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Merge a duplicate candidate into an existing content item (adds as alternate source)
+CREATE OR REPLACE FUNCTION merge_duplicate_candidate(p_candidate_id TEXT, p_target_content_id TEXT)
+RETURNS VOID AS $$
+DECLARE
+  c discovery_candidates%ROWTYPE;
+BEGIN
+  SELECT * INTO c FROM discovery_candidates WHERE id = p_candidate_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Candidate % not found', p_candidate_id; END IF;
+
+  -- Add as an alternate source if not already present
+  INSERT INTO content_sources (content_id, platform, platform_id, embed_url, is_primary, embeddable, is_working)
+  VALUES (p_target_content_id, c.platform, c.platform_id, c.embed_url, false, c.embeddable, true)
+  ON CONFLICT (content_id, platform, platform_id) DO NOTHING;
+
+  -- Increment source_count on target
+  UPDATE content SET source_count = COALESCE(source_count, 1) + 1, updated_at = NOW()
+  WHERE id = p_target_content_id;
+
+  UPDATE discovery_candidates SET status = 'duplicate' WHERE id = p_candidate_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Index for content_sources episode_id
+CREATE INDEX IF NOT EXISTS idx_csources_episode   ON content_sources(episode_id);
+CREATE INDEX IF NOT EXISTS idx_csources_working   ON content_sources(is_working) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_csources_checked   ON content_sources(last_checked_at);

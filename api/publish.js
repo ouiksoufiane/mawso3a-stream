@@ -5,11 +5,13 @@ const ALLOWED_ORIGINS = new Set([
   'https://mawso3a-stream-chi.vercel.app'
 ]);
 
-// djb2 hash — same as api/import.js slugifySeries
-function djb2(str) {
+// Stable series slug: identical algorithm to api/import.js slugifySeries
+// Produces: series_<arabicSafe>_<base36hash>
+function slugifySeries(name) {
   let h = 5381;
-  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) ^ str.charCodeAt(i);
-  return (h >>> 0).toString(16);
+  for (let i = 0; i < name.length; i++) h = (h * 33 ^ name.charCodeAt(i)) >>> 0;
+  const safe = name.replace(/\s+/g, '_').replace(/[^؀-ۿa-zA-Z0-9_]/g, '').slice(0, 35);
+  return `series_${safe}_${h.toString(36).slice(0, 5)}`;
 }
 
 // Quality scoring: score >= 85 → active, 60-84 → pending_review, < 60 → rejected
@@ -32,7 +34,7 @@ function scoreCandidate(c) {
   if (c.duration_sec >= minDur)               { s += 20; d.duration = 20; }  // proper length
   if (c.title_ar && c.title_ar.trim().length >= 3) { s += 15; d.title_ar = 15; } // has Arabic title
   if (c.poster_url)                           { s += 10; d.poster = 10; }    // has thumbnail
-  if (c.year && c.year >= 1940 && c.year <= 2026) { s += 8; d.year = 8; }   // valid year
+  if (c.year && c.year >= 1940 && c.year <= new Date().getFullYear() + 1) { s += 8; d.year = 8; }
   if (c.language && c.language !== 'unknown') { s += 6; d.language = 6; }   // known language
   if (c.origin && c.origin !== 'other')       { s += 6; d.origin = 6; }     // known origin
   if (c.category)                             { s += 4; d.category = 4; }   // has category
@@ -216,7 +218,7 @@ export default async function handler(req, res) {
           }
 
         } else if (c.type === 'episode' && c.series_title) {
-          const seriesId = `yt_${djb2(c.series_title.toLowerCase().trim())}`;
+          const seriesId = slugifySeries(c.series_title.toLowerCase().trim());
           const epId = `ep_${platform}_${c.platform_id}`;
           const ep = {
             id: epId,
