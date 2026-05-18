@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>تصفح — الموسوعة ستريم</title>
+<meta id="metaDesc" name="description"        content="تصفح المحتوى — الموسوعة ستريم"/>
+<meta id="ogTitle"  property="og:title"        content="تصفح — الموسوعة ستريم"/>
+<meta id="ogDesc"   property="og:description"  content="تصفح المحتوى — الموسوعة ستريم"/>
+<meta               property="og:type"         content="website"/>
+<meta id="ogUrl"    property="og:url"          content=""/>
+<meta               name="twitter:card"        content="summary"/>
+<link id="canonical" rel="canonical"           href=""/>
+<link rel="manifest"  href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
+<link rel="stylesheet" href="css/main.css"/>
+</head>
+<body>
+
+<nav class="nav solid" id="nav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="films.html"  class="nav-link" id="navFilms">الأفلام</a>
+    <a href="series.html" class="nav-link" id="navSeries">المسلسلات</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+    <div class="nav-hamburger" id="hamburger"
+      onclick="document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobileMenu').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="index.html"  class="nav-link">🏠 الرئيسية</a>
+  <a href="films.html"  class="nav-link">🎬 الأفلام</a>
+  <a href="series.html" class="nav-link">📺 المسلسلات</a>
+  <a href="search.html" class="nav-link">🔍 البحث</a>
+</div>
+
+<div class="page-hero">
+  <div class="page-hero-inner">
+    <div>
+      <div class="page-title" id="pageTitle">جاري التحميل…</div>
+      <div class="page-sub"  id="pageSub"></div>
+    </div>
+    <div class="page-count" id="pageCount"></div>
+  </div>
+</div>
+
+<div class="filters-wrap" id="filtersWrap">
+  <div class="filter-group">
+    <span class="filter-label">النوع</span>
+    <button class="filter-btn" id="ftAll"    data-type="">الكل</button>
+    <button class="filter-btn" id="ftFilm"   data-type="film">🎬 أفلام</button>
+    <button class="filter-btn" id="ftSeries" data-type="series">📺 مسلسلات</button>
+  </div>
+  <div class="filter-group">
+    <span class="filter-label">ترتيب</span>
+    <button class="filter-btn sort-btn on" data-sort="created_at.desc">الأحدث</button>
+    <button class="filter-btn sort-btn"    data-sort="view_count.desc">الأكثر مشاهدة</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="grid" id="grid">
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+  </div>
+</div>
+
+<div id="loadMoreWrap" style="display:none;text-align:center;padding:32px 0">
+  <button class="btn btn-ghost" id="loadMoreBtn" onclick="window.__loadMore()">تحميل المزيد</button>
+</div>
+
+<footer class="footer" style="margin-top:48px">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+      <p class="footer-tagline">فهرس أفلام ومسلسلات مجاني</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">تصفح</div>
+      <div class="footer-links">
+        <a href="index.html"  class="footer-link">الرئيسية</a>
+        <a href="films.html"  class="footer-link">الأفلام</a>
+        <a href="series.html" class="footer-link">المسلسلات</a>
+        <a href="search.html" class="footer-link">البحث</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">قانوني</div>
+      <div class="footer-links">
+        <a href="legal.html"       class="footer-link">الخصوصية</a>
+        <a href="legal.html#dmca"  class="footer-link">DMCA</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+  </div>
+</footer>
+
+<script type="module">
+import { getContent, countContent } from './js/api.js';
+import { gridCardHTML, skeletonGrid, onScrollEnd } from './js/utils.js';
+
+const BASE = 'https://mawso3a-stream.vercel.app';
+
+// ── Category meta config ──────────────────────────────────────
+const CAT_META = {
+  // by origin
+  turkish:    { icon:'🇹🇷', title:'المسلسلات التركية',        sub:'دراما تركية مدبلجة بالعربية' },
+  indian:     { icon:'🇮🇳', title:'المسلسلات الهندية',        sub:'دراما هندية مدبلجة بالعربية' },
+  moroccan:   { icon:'🇲🇦', title:'المحتوى المغربي',           sub:'أفلام ومسلسلات مغربية بالدارجة والعربية' },
+  korean:     { icon:'🇰🇷', title:'المسلسلات الكورية',        sub:'دراما كورية مترجمة ومدبلجة' },
+  american:   { icon:'🇺🇸', title:'الأفلام الأمريكية',        sub:'أفلام هوليوود مدبلجة' },
+  chinese:    { icon:'🇨🇳', title:'المسلسلات الصينية',        sub:'دراما صينية مدبلجة بالعربية' },
+  french:     { icon:'🇫🇷', title:'الأفلام الفرنسية',         sub:'أفلام فرنسية مترجمة' },
+  // by language
+  darija:     { icon:'🇲🇦', title:'الدارجة المغربية',          sub:'محتوى بالدارجة المغربية' },
+  ar_dubbed:  { icon:'🌍',  title:'عربي مدبلج',               sub:'محتوى مدبلج باللغة العربية' },
+  // by category
+  documentary:{ icon:'🎥',  title:'الوثائقيات',                sub:'أفلام ومسلسلات وثائقية' },
+  anime:      { icon:'🎌',  title:'الأنيمي',                   sub:'مسلسلات أنيمي مدبلجة ومترجمة' },
+  action:     { icon:'💥',  title:'أفلام الأكشن',               sub:'أفلام وأعمال الإثارة والأكشن' },
+  comedy:     { icon:'😂',  title:'الكوميديا',                  sub:'أفلام ومسلسلات كوميدية' },
+  horror:     { icon:'👻',  title:'أفلام الرعب',                sub:'أفلام الرعب والإثارة' },
+  romance:    { icon:'💕',  title:'الرومانسية',                 sub:'أفلام ومسلسلات رومانسية' },
+  drama:      { icon:'🎭',  title:'الدراما',                    sub:'أفلام ومسلسلات درامية' },
+  // by type
+  film:       { icon:'🎬',  title:'الأفلام',                   sub:'جميع الأفلام المتاحة' },
+  series:     { icon:'📺',  title:'المسلسلات',                  sub:'جميع المسلسلات المتاحة' },
+  // new / popular
+  new:        { icon:'🆕',  title:'أحدث الإضافات',             sub:'آخر ما تمت إضافته' },
+  popular:    { icon:'🔥',  title:'الأكثر مشاهدة',             sub:'المحتوى الأكثر مشاهدة' },
+};
+
+// ── Parse URL params ──────────────────────────────────────────
+const sp = new URLSearchParams(location.search);
+const P = {
+  origin:   sp.get('origin')   || '',
+  language: sp.get('language') || '',
+  category: sp.get('category') || '',
+  type:     sp.get('type')     || '',
+  preset:   sp.get('preset')   || '',  // 'new' | 'popular'
+};
+
+// Determine sort from preset or default
+let sort = sp.get('sort') || (P.preset === 'popular' ? 'view_count.desc' : 'created_at.desc');
+let typeFilter = P.type;
+
+// ── Determine page title ──────────────────────────────────────
+function getPageMeta() {
+  const key = P.origin || P.language || P.category || P.preset || P.type;
+  const m = CAT_META[key] || { icon:'🎬', title:'تصفح المحتوى', sub:'جميع الأفلام والمسلسلات' };
+  return m;
+}
+
+function initUI() {
+  const m = getPageMeta();
+  document.title = `${m.title} — الموسوعة ستريم`;
+  document.getElementById('pageTitle').textContent = `${m.icon} ${m.title}`;
+  document.getElementById('pageSub').textContent   = m.sub;
+  document.getElementById('metaDesc').content      = m.sub;
+  document.getElementById('ogTitle').content       = `${m.title} — الموسوعة ستريم`;
+  document.getElementById('ogDesc').content        = m.sub;
+  const pageUrl = `${BASE}/category.html${location.search}`;
+  document.getElementById('ogUrl').content    = pageUrl;
+  document.getElementById('canonical').href   = pageUrl;
+
+  // Type filter buttons
+  const allBtn = document.getElementById('ftAll');
+  const filmBtn = document.getElementById('ftFilm');
+  const seriesBtn = document.getElementById('ftSeries');
+  [allBtn, filmBtn, seriesBtn].forEach(b => b.classList.remove('on'));
+  if      (typeFilter === 'film')   filmBtn.classList.add('on');
+  else if (typeFilter === 'series') seriesBtn.classList.add('on');
+  else                              allBtn.classList.add('on');
+
+  allBtn.onclick    = () => setType('');
+  filmBtn.onclick   = () => setType('film');
+  seriesBtn.onclick = () => setType('series');
+
+  // Sort buttons
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.toggle('on', b.dataset.sort === sort);
+    b.onclick = () => setSort(b.dataset.sort);
+  });
+}
+
+function setType(t) {
+  typeFilter = t;
+  const u = new URL(location.href);
+  t ? u.searchParams.set('type', t) : u.searchParams.delete('type');
+  history.replaceState({}, '', u);
+  offset = 0; hasMore = true;
+  loadGrid(true);
+  [document.getElementById('ftAll'), document.getElementById('ftFilm'), document.getElementById('ftSeries')]
+    .forEach(b => b.classList.remove('on'));
+  if (t === 'film') document.getElementById('ftFilm').classList.add('on');
+  else if (t === 'series') document.getElementById('ftSeries').classList.add('on');
+  else document.getElementById('ftAll').classList.add('on');
+}
+
+function setSort(s) {
+  sort = s;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('on', b.dataset.sort === s));
+  offset = 0; hasMore = true;
+  loadGrid(true);
+}
+
+// ── Grid logic ────────────────────────────────────────────────
+const LIMIT = 24;
+let offset = 0;
+let loading = false;
+let hasMore = true;
+
+function buildParams() {
+  return {
+    type:     typeFilter || undefined,
+    origin:   P.origin   || undefined,
+    language: P.language || undefined,
+    category: P.category || undefined,
+    limit:    LIMIT,
+    offset,
+    order:    sort
+  };
+}
+
+async function loadGrid(reset = false) {
+  if (loading || (!hasMore && !reset)) return;
+  loading = true;
+
+  const grid = document.getElementById('grid');
+  if (reset) {
+    grid.innerHTML = skeletonGrid(12);
+    offset = 0;
+  }
+
+  try {
+    const items = await getContent({ ...buildParams(), offset });
+    if (reset) grid.innerHTML = '';
+    if (!items.length) {
+      hasMore = false;
+      if (reset) {
+        grid.innerHTML = `<div class="empty" style="grid-column:1/-1">
+          <div class="empty-icon">🎬</div>
+          <div class="empty-h">لا يوجد محتوى في هذه الفئة بعد</div>
+        </div>`;
+      }
+      document.getElementById('loadMoreWrap').style.display = 'none';
+      return;
+    }
+
+    grid.insertAdjacentHTML('beforeend', items.map(i => gridCardHTML(i)).join(''));
+    offset += items.length;
+    hasMore = items.length === LIMIT;
+    document.getElementById('loadMoreWrap').style.display = hasMore ? '' : 'none';
+
+    // Count (only on first load)
+    if (reset) {
+      countContent({ type: typeFilter || undefined, origin: P.origin || undefined, language: P.language || undefined, category: P.category || undefined })
+        .then(n => { document.getElementById('pageCount').textContent = `${n.toLocaleString('ar-EG')} نتيجة`; })
+        .catch(() => {});
+    }
+  } catch(e) {
+    console.error(e);
+    if (reset) grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">⚠️</div><div class="empty-h">تعذر التحميل</div></div>`;
+  } finally {
+    loading = false;
+  }
+}
+
+window.__loadMore = function() { loadGrid(false); };
+
+// Infinite scroll
+onScrollEnd(() => { if (hasMore && !loading) loadGrid(false); });
+
+initUI();
+loadGrid(true);
+</script>
+</body>
+</html>

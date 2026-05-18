@@ -31,8 +31,18 @@
   </div>
   <div class="nav-right">
     <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+    <div class="nav-hamburger" id="hamburger"
+      onclick="document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobileMenu').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
   </div>
 </nav>
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="index.html"  class="nav-link active">🏠 الرئيسية</a>
+  <a href="series.html" class="nav-link">📺 المسلسلات</a>
+  <a href="films.html"  class="nav-link">🎬 الأفلام</a>
+  <a href="search.html" class="nav-link">🔍 البحث</a>
+</div>
 
 <!-- HERO -->
 <section class="hero" id="hero">
@@ -61,19 +71,21 @@
 <!-- CATEGORY QUICK FILTERS -->
 <div style="padding:0 24px;max-width:1600px;margin:0 auto">
   <div class="category-tabs">
-    <a href="index.html"                       class="cat-tab active">الكل</a>
-    <a href="films.html?origin=turkish"        class="cat-tab">🇹🇷 تركي</a>
-    <a href="films.html?origin=indian"         class="cat-tab">🇮🇳 هندي</a>
-    <a href="films.html?origin=korean"         class="cat-tab">🇰🇷 كوري</a>
-    <a href="films.html?origin=american"       class="cat-tab">🇺🇸 أمريكي</a>
-    <a href="films.html?origin=chinese"        class="cat-tab">🇨🇳 صيني</a>
-    <a href="films.html?language=darija"       class="cat-tab">🇲🇦 دارجة</a>
-    <a href="series.html"                      class="cat-tab">📺 مسلسلات</a>
-    <a href="films.html"                       class="cat-tab">🎬 أفلام</a>
-    <a href="films.html?category=action"       class="cat-tab">💥 أكشن</a>
-    <a href="films.html?category=romance"      class="cat-tab">❤️ رومانسي</a>
-    <a href="films.html?category=comedy"       class="cat-tab">😂 كوميدي</a>
-    <a href="films.html?category=drama"        class="cat-tab">🎭 دراما</a>
+    <a href="index.html"                              class="cat-tab active">الكل</a>
+    <a href="category.html?origin=turkish"            class="cat-tab">🇹🇷 تركي</a>
+    <a href="category.html?origin=indian"             class="cat-tab">🇮🇳 هندي</a>
+    <a href="category.html?origin=korean"             class="cat-tab">🇰🇷 كوري</a>
+    <a href="category.html?origin=moroccan"           class="cat-tab">🇲🇦 مغربي</a>
+    <a href="category.html?origin=american"           class="cat-tab">🇺🇸 أمريكي</a>
+    <a href="category.html?origin=chinese"            class="cat-tab">🇨🇳 صيني</a>
+    <a href="category.html?language=darija"           class="cat-tab">🇲🇦 دارجة</a>
+    <a href="category.html?category=documentary"      class="cat-tab">🎥 وثائقي</a>
+    <a href="category.html?category=anime"            class="cat-tab">🎌 أنيمي</a>
+    <a href="category.html?category=action"           class="cat-tab">💥 أكشن</a>
+    <a href="category.html?category=romance"          class="cat-tab">❤️ رومانسي</a>
+    <a href="category.html?category=comedy"           class="cat-tab">😂 كوميدي</a>
+    <a href="category.html?preset=popular"            class="cat-tab">🔥 الأكثر مشاهدة</a>
+    <a href="category.html?preset=new"                class="cat-tab">🆕 أحدث الإضافات</a>
   </div>
 </div>
 

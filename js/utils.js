@@ -143,7 +143,7 @@ export function animateCounter(el, target, duration = 1500) {
 }
 
 /* ── URL HELPERS ─────────────────────────────────────────── */
-export function filmHref(item)   { return `watch.html?id=${encodeURIComponent(item.id)}`; }
+export function filmHref(item)   { return `film-detail.html?id=${encodeURIComponent(item.id)}`; }
 export function seriesHref(item) { return `series-detail.html?id=${encodeURIComponent(item.id)}`; }
 export function itemHref(item)   { return item.type === 'film' ? filmHref(item) : seriesHref(item); }
 

@@ -4,6 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>مسلسل — الموسوعة ستريم</title>
+<meta id="metaDesc"  name="description"        content="مشاهدة مسلسلات مدبلجة — الموسوعة ستريم"/>
+<meta id="ogTitle"   property="og:title"        content="مسلسل — الموسوعة ستريم"/>
+<meta id="ogDesc"    property="og:description"  content="مشاهدة مسلسلات مدبلجة — الموسوعة ستريم"/>
+<meta id="ogImage"   property="og:image"        content=""/>
+<meta id="ogUrl"     property="og:url"          content=""/>
+<meta               property="og:type"          content="video.tv_show"/>
+<meta               name="twitter:card"         content="summary_large_image"/>
+<link id="canonical" rel="canonical"            href=""/>
+<link rel="manifest"  href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
@@ -116,11 +126,33 @@ window.__reportSeries = async function(seriesId) {
   toast('تم الإبلاغ. شكراً على مساعدتك! ✅', 'success');
 };
 
+const BASE = 'https://mawso3a-stream.vercel.app';
+
+function injectLD(schema) {
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = JSON.stringify(schema);
+  document.head.appendChild(el);
+}
+
 async function loadSeries() {
   const series = await getContentById(id);
   if (!series || series.type !== 'series') { location.href = 'series.html'; return; }
 
+  const pageUrl = `${BASE}/series-detail.html?id=${encodeURIComponent(id)}`;
   document.title = `${series.title_ar} — الموسوعة ستريم`;
+  document.getElementById('metaDesc').content  = series.description ? series.description.slice(0, 160) : `مشاهدة مسلسل ${series.title_ar} مدبلج`;
+  document.getElementById('ogTitle').content   = `${series.title_ar} — الموسوعة ستريم`;
+  document.getElementById('ogDesc').content    = series.description ? series.description.slice(0, 160) : `مشاهدة مسلسل ${series.title_ar} مدبلج`;
+  document.getElementById('ogImage').content   = series.poster_url || '';
+  document.getElementById('ogUrl').content     = pageUrl;
+  document.getElementById('canonical').href    = pageUrl;
+  injectLD({ '@context':'https://schema.org', '@type':'TVSeries',
+    name: series.title_ar, alternateName: series.title_orig||undefined,
+    description: series.description||undefined, image: series.poster_url||undefined,
+    numberOfEpisodes: series.avail_eps||undefined,
+    startDate: series.year?String(series.year):undefined,
+    inLanguage:'ar', url: pageUrl, genre: series.category||undefined });
 
   // Poster — safe replacement without outerHTML assignment
   const posterWrap = document.getElementById('sPosterWrap');

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>فيلم — الموسوعة ستريم</title>
+<meta id="metaDesc"     name="description"       content="مشاهدة أفلام مدبلجة — الموسوعة ستريم"/>
+<meta id="ogTitle"      property="og:title"      content="فيلم — الموسوعة ستريم"/>
+<meta id="ogDesc"       property="og:description" content="مشاهدة أفلام مدبلجة — الموسوعة ستريم"/>
+<meta id="ogImage"      property="og:image"       content=""/>
+<meta id="ogUrl"        property="og:url"         content=""/>
+<meta                   property="og:type"        content="video.movie"/>
+<meta id="twTitle"      name="twitter:title"      content="فيلم — الموسوعة ستريم"/>
+<meta id="twImg"        name="twitter:image"      content=""/>
+<meta                   name="twitter:card"       content="summary_large_image"/>
+<link id="canonical"    rel="canonical"           href=""/>
+<link rel="manifest"    href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
+<link rel="stylesheet"  href="css/main.css"/>
+<style>
+/* ── Film Detail ── */
+.film-hero {
+  position: relative;
+  min-height: 520px;
+  padding-top: var(--nav-h);
+  display: flex;
+  align-items: stretch;
+}
+.film-hero-backdrop {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center 20%;
+  filter: blur(48px) brightness(0.3) saturate(1.4);
+  transform: scale(1.08);
+}
+.film-hero-backdrop::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(9,9,9,0.5) 0%, rgba(9,9,9,0.97) 80%);
+}
+.film-hero-inner {
+  position: relative; z-index: 2;
+  max-width: 1280px; margin: 0 auto; width: 100%;
+  padding: 60px 48px 48px;
+  display: flex; gap: 48px; align-items: flex-start;
+}
+.film-poster-col { flex-shrink: 0; }
+.film-poster-frame {
+  position: relative;
+  width: 240px; aspect-ratio: 2/3;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  background: var(--card);
+  cursor: pointer;
+  transition: transform 0.3s var(--ease);
+}
+.film-poster-frame:hover { transform: scale(1.02); }
+.film-poster-frame img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: opacity 0.4s;
+}
+.film-poster-ph {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 64px; height: 100%;
+}
+.film-play-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0);
+  transition: background 0.3s;
+}
+.film-poster-frame:hover .film-play-overlay { background: rgba(0,0,0,0.55); }
+.film-play-btn {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent); color: #000; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  transform: scale(0); transition: transform 0.3s var(--ease);
+  box-shadow: 0 0 0 8px rgba(232,160,32,0.25);
+}
+.film-poster-frame:hover .film-play-btn { transform: scale(1); }
+/* player replaces poster */
+.film-player-inline {
+  width: 240px; aspect-ratio: 2/3;
+  border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.film-player-inline iframe {
+  width: 100%; height: 100%; border: none; display: block;
+}
+
+.film-info-col { flex: 1; min-width: 0; }
+.film-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-dim); border: 1px solid rgba(232,160,32,0.35);
+  color: var(--accent); font-size: 11px; font-weight: 800;
+  padding: 4px 14px; border-radius: 20px; margin-bottom: 20px;
+  letter-spacing: 0.6px;
+}
+.film-title {
+  font-size: 42px; font-weight: 900; line-height: 1.1;
+  letter-spacing: -1px; margin-bottom: 8px;
+}
+.film-title-orig {
+  font-size: 16px; color: var(--text-dim); margin-bottom: 20px;
+}
+.film-stats {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+  font-size: 13px; color: var(--text-dim); align-items: center;
+}
+.film-stat-sep { color: var(--border2); }
+.film-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.film-desc {
+  font-size: 14px; line-height: 1.9; color: rgba(240,240,240,0.72);
+  max-width: 620px; margin-bottom: 28px;
+}
+.film-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn-watch {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 32px; border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; font-size: 15px; font-weight: 800;
+  box-shadow: 0 4px 24px var(--accent-glow);
+  transition: all 0.25s var(--ease); cursor: pointer; border: none;
+  font-family: inherit;
+}
+.btn-watch:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.btn-watch-icon { font-size: 18px; }
+
+/* Rating stars */
+.film-rating {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 15px; color: var(--accent); font-weight: 700;
+}
+.film-rating-label { font-size: 12px; color: var(--text-dim); font-weight: 400; }
+
+@media (max-width: 768px) {
+  .film-hero-inner { flex-direction: column; padding: 40px 20px 32px; gap: 28px; }
+  .film-poster-col { display: flex; justify-content: center; }
+  .film-poster-frame { width: 180px; }
+  .film-player-inline { width: 100%; aspect-ratio: 16/9; border-radius: var(--r); }
+  .film-title { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav solid" id="nav">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+    <a href="films.html"  class="nav-link active">الأفلام</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+    <div class="nav-hamburger" id="hamburger" onclick="document.getElementById('hamburger').classList.toggle('open');document.getElementById('mobileMenu').classList.toggle('open')">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</nav>
+<div class="nav-mobile-menu" id="mobileMenu">
+  <a href="index.html"  class="nav-link">🏠 الرئيسية</a>
+  <a href="series.html" class="nav-link">📺 المسلسلات</a>
+  <a href="films.html"  class="nav-link active">🎬 الأفلام</a>
+  <a href="search.html" class="nav-link">🔍 البحث</a>
+</div>
+
+<!-- Hero -->
+<div class="film-hero" id="filmHero">
+  <div class="film-hero-backdrop" id="heroBg"></div>
+  <div class="film-hero-inner">
+    <!-- Poster / Inline player -->
+    <div class="film-poster-col">
+      <div class="film-poster-frame" id="posterFrame" onclick="window.__playInline()">
+        <div class="film-poster-ph" id="posterPh">🎬</div>
+        <div class="film-play-overlay">
+          <div class="film-play-btn">▶</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="film-info-col">
+      <div class="film-eyebrow">🎬 فيلم</div>
+      <h1 class="film-title" id="filmTitle">
+        <div class="skel skel-line" style="width:320px;height:42px"></div>
+      </h1>
+      <div class="film-title-orig" id="filmOrig"></div>
+      <div class="film-stats" id="filmStats"></div>
+      <div class="film-badges" id="filmBadges"></div>
+      <div class="film-desc" id="filmDesc"></div>
+      <div class="film-actions" id="filmActions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Related films -->
+<div class="section" id="relSection" style="display:none;padding:48px 48px 0">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🎬</span> أفلام مشابهة</div>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('relRow',-1)">›</button>
+    <div class="row-scroll" id="relRow"></div>
+    <button class="row-arrow left"  onclick="scrollRow('relRow',1)">‹</button>
+  </div>
+</div>
+
+<footer class="footer" style="margin-top:64px">
+  <div class="footer-grid">
+    <div class="footer-col">
+      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
+      <p class="footer-tagline">فهرس أفلام ومسلسلات مجاني</p>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">تصفح</div>
+      <div class="footer-links">
+        <a href="index.html"  class="footer-link">الرئيسية</a>
+        <a href="films.html"  class="footer-link">الأفلام</a>
+        <a href="series.html" class="footer-link">المسلسلات</a>
+        <a href="search.html" class="footer-link">البحث</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <div class="footer-col-title">قانوني</div>
+      <div class="footer-links">
+        <a href="legal.html"       class="footer-link">الخصوصية</a>
+        <a href="legal.html#dmca"  class="footer-link">DMCA</a>
+        <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal">
+      <a href="legal.html#dmca">DMCA</a>
+      <a href="legal.html#privacy">الخصوصية</a>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import { getContentById, getContent, incrementView, reportDeadLink } from './js/api.js';
+import { originBadge, langBadge, catBadge, CW, FAV, toast, formatDuration, esc, cardHTML } from './js/utils.js';
+
+window.scrollRow = (id, dir) => { const el = document.getElementById(id); if (el) el.scrollBy({ left: dir * 480, behavior: 'smooth' }); };
+
+const BASE = 'https://mawso3a-stream.vercel.app';
+const sp = new URLSearchParams(location.search);
+const filmId = sp.get('id');
+if (!filmId) location.href = 'films.html';
+
+let FILM = null;
+
+function embedSrc(ytId) {
+  return ytId.startsWith('arc_')
+    ? `https://archive.org/embed/${ytId.slice(4)}?autoplay=1`
+    : `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+}
+
+window.__playInline = function() {
+  if (!FILM?.yt_id) return;
+  const col = document.querySelector('.film-poster-col');
+  col.innerHTML = `<div class="film-player-inline">
+    <iframe src="${embedSrc(esc(FILM.yt_id))}"
+      allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" loading="eager"></iframe>
+  </div>`;
+  CW.save({ id: FILM.id, title: FILM.title_ar, href: `film-detail.html?id=${FILM.id}`, type:'film', progress: 5 });
+  incrementView(FILM.id);
+};
+
+window.__report = async function(id, ytId) {
+  await reportDeadLink(id, ytId);
+  toast('تم الإبلاغ. شكراً! ✅', 'success');
+};
+
+window.__toggleFavMain = function(id) {
+  const on = FAV.toggle(id);
+  const btn = document.getElementById('favBtn');
+  if (btn) btn.innerHTML = on ? '❤️ في المفضلة' : '🤍 إضافة للمفضلة';
+  toast(on ? '❤️ أضيف للمفضلة' : '🤍 أزيل من المفضلة', on ? 'success' : 'info');
+};
+
+function injectLD(film) {
+  const ld = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: film.title_ar,
+    alternateName: film.title_orig || undefined,
+    description: film.description || undefined,
+    image: film.poster_url || undefined,
+    datePublished: film.year ? String(film.year) : undefined,
+    inLanguage: 'ar',
+    url: `${BASE}/film-detail.html?id=${encodeURIComponent(film.id)}`,
+    genre: film.category || undefined
+  };
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = JSON.stringify(ld);
+  document.head.appendChild(el);
+}
+
+async function load() {
+  const film = await getContentById(filmId);
+  if (!film || film.type !== 'film') { location.href = 'films.html'; return; }
+  FILM = film;
+
+  // Meta & SEO
+  const pageUrl = `${BASE}/film-detail.html?id=${encodeURIComponent(film.id)}`;
+  document.title = `${film.title_ar} — الموسوعة ستريم`;
+  document.getElementById('metaDesc').content    = film.description ? film.description.slice(0, 160) : `مشاهدة فيلم ${film.title_ar} مدبلج`;
+  document.getElementById('ogTitle').content     = `${film.title_ar} — الموسوعة ستريم`;
+  document.getElementById('ogDesc').content      = film.description ? film.description.slice(0, 160) : `مشاهدة فيلم ${film.title_ar} مدبلج`;
+  document.getElementById('ogImage').content     = film.poster_url || '';
+  document.getElementById('ogUrl').content       = pageUrl;
+  document.getElementById('twTitle').content     = film.title_ar;
+  document.getElementById('twImg').content       = film.poster_url || '';
+  document.getElementById('canonical').href      = pageUrl;
+  injectLD(film);
+
+  // Backdrop
+  if (film.poster_url) {
+    document.getElementById('heroBg').style.backgroundImage = `url('${film.poster_url}')`;
+  }
+
+  // Poster
+  const frame = document.getElementById('posterFrame');
+  if (film.poster_url) {
+    frame.innerHTML = `
+      <img src="${esc(film.poster_url)}" alt="${esc(film.title_ar)}" loading="eager"
+        onerror="this.parentElement.querySelector('.film-poster-ph').style.display='flex';this.remove()"/>
+      <div class="film-poster-ph" style="display:none">🎬</div>
+      <div class="film-play-overlay"><div class="film-play-btn">▶</div></div>`;
+  }
+  document.getElementById('posterPh').style.display = 'none';
+
+  // Title & orig
+  document.getElementById('filmTitle').textContent = film.title_ar;
+  if (film.title_orig) document.getElementById('filmOrig').textContent = film.title_orig;
+
+  // Stats
+  const views = film.view_count ? `<span>${film.view_count.toLocaleString('ar-EG')} مشاهدة</span><span class="film-stat-sep">·</span>` : '';
+  const dur   = film.duration_sec ? `<span>${formatDuration(film.duration_sec)}</span><span class="film-stat-sep">·</span>` : '';
+  const yr    = film.year ? `<span>${film.year}</span>` : '';
+  document.getElementById('filmStats').innerHTML = `${views}${dur}${yr}`;
+
+  // Badges
+  document.getElementById('filmBadges').innerHTML =
+    originBadge(film.origin || 'other') + langBadge(film.language || 'ar_dubbed') + catBadge(film.category);
+
+  // Description
+  if (film.description) document.getElementById('filmDesc').textContent = film.description;
+
+  // Actions
+  const favOn = FAV.is(film.id);
+  document.getElementById('filmActions').innerHTML = `
+    <button class="btn-watch" onclick="window.__playInline()">
+      <span class="btn-watch-icon">▶</span> مشاهدة الآن
+    </button>
+    <button class="btn btn-ghost btn-sm" id="favBtn" onclick="window.__toggleFavMain('${esc(film.id)}')">
+      ${favOn ? '❤️ في المفضلة' : '🤍 إضافة للمفضلة'}
+    </button>
+    <button class="report-btn" onclick="window.__report('${esc(film.id)}','${esc(film.yt_id)}')">⚠️ إبلاغ</button>
+  `;
+
+  // Related films
+  const [byOrigin, byCat] = await Promise.all([
+    getContent({ type:'film', origin: film.origin, limit: 16 }).catch(() => []),
+    getContent({ type:'film', category: film.category, limit: 10 }).catch(() => [])
+  ]);
+  const seen = new Set([film.id]);
+  const related = [...byOrigin, ...byCat].filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; }).slice(0, 14);
+  if (related.length) {
+    document.getElementById('relSection').style.display = '';
+    document.getElementById('relRow').innerHTML = related.map(i => cardHTML(i)).join('');
+  }
+}
+
+load().catch(() => {
+  document.getElementById('filmTitle').textContent = 'تعذر تحميل الفيلم';
+});
+</script>
+</body>
+</html>

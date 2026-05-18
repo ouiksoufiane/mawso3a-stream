@@ -4,6 +4,16 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>مشاهدة — الموسوعة ستريم</title>
+<meta id="metaDesc"  name="description"        content="مشاهدة — الموسوعة ستريم"/>
+<meta id="ogTitle"   property="og:title"        content="مشاهدة — الموسوعة ستريم"/>
+<meta id="ogDesc"    property="og:description"  content="مشاهدة — الموسوعة ستريم"/>
+<meta id="ogImage"   property="og:image"        content=""/>
+<meta id="ogUrl"     property="og:url"          content=""/>
+<meta               property="og:type"          content="video.other"/>
+<meta               name="twitter:card"         content="summary_large_image"/>
+<link id="canonical" rel="canonical"            href=""/>
+<link rel="manifest"  href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
 <link rel="stylesheet" href="css/main.css"/>
 </head>
 <body>
@@ -82,6 +92,24 @@ const seriesId  = sp.get('series');
 
 const SB_URL  = 'https://wadazxpofizrfoczhmkn.supabase.co/rest/v1';
 const SB_ANON = 'sb_publishable_50j1Q_SJc1HA4fWXjO9jsA_wzsub0Az';
+const BASE    = 'https://mawso3a-stream.vercel.app';
+
+function setMeta(title, desc, img, url) {
+  document.title = `${title} — الموسوعة ستريم`;
+  document.getElementById('metaDesc').content  = (desc || title).slice(0, 160);
+  document.getElementById('ogTitle').content   = `${title} — الموسوعة ستريم`;
+  document.getElementById('ogDesc').content    = (desc || title).slice(0, 160);
+  document.getElementById('ogImage').content   = img || '';
+  document.getElementById('ogUrl').content     = url;
+  document.getElementById('canonical').href    = url;
+}
+
+function injectLD(schema) {
+  const el = document.createElement('script');
+  el.type = 'application/ld+json';
+  el.textContent = JSON.stringify(schema);
+  document.head.appendChild(el);
+}
 
 function embed(ytId) {
   const src = ytId.startsWith('arc_')
@@ -131,7 +159,13 @@ async function loadFilm(id) {
     showInfo(); return;
   }
 
-  document.title = `${film.title_ar} — الموسوعة ستريم`;
+  const pageUrl = `${BASE}/watch.html?id=${encodeURIComponent(id)}`;
+  setMeta(film.title_ar, film.description, film.poster_url, pageUrl);
+  injectLD({ '@context':'https://schema.org', '@type':'Movie',
+    name: film.title_ar, alternateName: film.title_orig||undefined,
+    description: film.description||undefined, image: film.poster_url||undefined,
+    datePublished: film.year?String(film.year):undefined,
+    inLanguage:'ar', url: pageUrl, genre: film.category||undefined });
   embed(film.yt_id);
   showInfo();
 
@@ -176,7 +210,13 @@ async function loadEpisode(epId, serId) {
   }
 
   const epTitle = ep.title_ar || `الحلقة ${ep.episode}`;
-  document.title = `${epTitle}${series ? ' — ' + series.title_ar : ''} — الموسوعة ستريم`;
+  const epPageUrl = `${BASE}/watch.html?episode=${encodeURIComponent(epId)}${serId?'&series='+encodeURIComponent(serId):''}`;
+  const epFullTitle = `${epTitle}${series ? ' — ' + series.title_ar : ''}`;
+  setMeta(epFullTitle, series?.description, series?.poster_url || null, epPageUrl);
+  injectLD({ '@context':'https://schema.org', '@type':'TVEpisode',
+    name: epTitle, partOfSeries: series ? { '@type':'TVSeries', name: series.title_ar } : undefined,
+    episodeNumber: ep.episode||undefined, partOfSeason: { '@type':'TVSeason', seasonNumber: ep.season||1 },
+    inLanguage:'ar', url: epPageUrl });
   embed(ep.yt_id);
   showInfo();
 
