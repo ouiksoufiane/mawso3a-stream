@@ -64,6 +64,7 @@
     <a href="films.html?origin=indian"         class="cat-tab">🇮🇳 هندي</a>
     <a href="films.html?origin=korean"         class="cat-tab">🇰🇷 كوري</a>
     <a href="films.html?origin=american"       class="cat-tab">🇺🇸 أمريكي</a>
+    <a href="films.html?origin=chinese"        class="cat-tab">🇨🇳 صيني</a>
     <a href="films.html?language=darija"       class="cat-tab">🇲🇦 دارجة</a>
     <a href="series.html"                      class="cat-tab">📺 مسلسلات</a>
     <a href="films.html"                       class="cat-tab">🎬 أفلام</a>
@@ -209,6 +210,19 @@
   </div>
 </div>
 
+<!-- CHINESE -->
+<div class="section">
+  <div class="sec-header">
+    <div class="sec-title"><span class="sec-title-icon">🇨🇳</span> دراما صينية مدبلجة</div>
+    <a href="films.html?origin=chinese" class="sec-more">عرض الكل ←</a>
+  </div>
+  <div class="row-wrap">
+    <button class="row-arrow right" onclick="scrollRow('rChinese',-1)">›</button>
+    <div class="row-scroll" id="rChinese"></div>
+    <button class="row-arrow left" onclick="scrollRow('rChinese',1)">‹</button>
+  </div>
+</div>
+
 <!-- ACTION -->
 <div class="section" style="padding-bottom:48px">
   <div class="sec-header">
@@ -244,7 +258,7 @@ window.scrollRow = function(id, dir) {
   if (el) el.scrollBy({ left: dir * 480, behavior: 'smooth' });
 };
 
-const ALL_ROWS = ['rFeatured','rNew','rTrSeries','rTrFilms','rIndianSeries','rIndian','rKorean','rAmerican','rDarija','rAction'];
+const ALL_ROWS = ['rFeatured','rNew','rTrSeries','rTrFilms','rIndianSeries','rIndian','rKorean','rAmerican','rDarija','rChinese','rAction'];
 ALL_ROWS.forEach(id => {
   const el = document.getElementById(id);
   if (el) el.innerHTML = skeletonRow(8);
@@ -282,8 +296,8 @@ function renderHero(item) {
     bg.classList.add('hero-transition');
     setTimeout(() => bg.classList.remove('hero-transition'), 1000);
   }
-  const flags = {turkish:'🇹🇷',indian:'🇮🇳',korean:'🇰🇷',american:'🇺🇸',moroccan:'🇲🇦'};
-  const origins = {turkish:'تركي',indian:'هندي',korean:'كوري',american:'أمريكي',moroccan:'مغربي'};
+  const flags = {turkish:'🇹🇷',indian:'🇮🇳',korean:'🇰🇷',american:'🇺🇸',moroccan:'🇲🇦',chinese:'🇨🇳'};
+  const origins = {turkish:'تركي',indian:'هندي',korean:'كوري',american:'أمريكي',moroccan:'مغربي',chinese:'صيني'};
   const flag = flags[item.origin]||'🌍';
   const orig = origins[item.origin]||'';
   document.getElementById('heroEyebrow').textContent = `${item.type==='series'?'📺 مسلسل':'🎬 فيلم'} ${flag} ${orig}`;
@@ -330,8 +344,9 @@ Promise.all([
   getContent({ origin: 'korean', limit: 14 }),
   getContent({ origin: 'american', limit: 16 }),
   getContent({ language: 'darija', limit: 14 }),
+  getContent({ origin: 'chinese', limit: 14 }),
   getContent({ category: 'action', limit: 14 }),
-]).then(([stats, featured, newest, trSeries, trFilms, indianSeries, indian, korean, american, darija, action]) => {
+]).then(([stats, featured, newest, trSeries, trFilms, indianSeries, indian, korean, american, darija, chinese, action]) => {
   animateCounter(document.getElementById('sF'), stats.films);
   animateCounter(document.getElementById('sS'), stats.series);
   animateCounter(document.getElementById('sE'), stats.eps);
@@ -345,6 +360,7 @@ Promise.all([
   renderRow('rKorean', korean);
   renderRow('rAmerican', american);
   renderRow('rDarija', darija);
+  renderRow('rChinese', chinese);
   renderRow('rAction', action);
 
   heroItems = [...(featured||[]).filter(x=>x.poster_url).slice(0,8)];

@@ -17,13 +17,19 @@ async function sb(method, path, body, serviceKey) {
 }
 
 function detectOrigin(title) {
-  const t = title.toLowerCase();
-  if (/تركي|türk|turkish|تركية/.test(t))                        return 'turkish';
-  if (/هندي|hindi|bollywood|بوليوود|هندية|بوليود/.test(t))       return 'indian';
-  if (/كوري|korean|كورية|k-drama|kdrama/.test(t))               return 'korean';
-  if (/أمريكي|american|هوليوود|hollywood|أمريكية/.test(t))       return 'american';
-  if (/مغربي|مغرب|maroc|darija|دارجة|مغربية/.test(t))           return 'moroccan';
+  const t = (title || '').toLowerCase();
+  if (/تركي|türk|turkish|تركية|إسطنبول|اسطنبول|istanbul|أناضول|aşk|safir|hatasız/.test(t)) return 'turkish';
+  if (/هندي|hindi|bollywood|بوليوود|هندية|هندى|بوليود|kareena|kapoor|aamir|salman|shahrukh|deepika|hrithik|rowdy|baahubali|bajrangi|أميتاب|باتشن|أيشواريا|شاروخان|جانسي|مادهوبالا|فيلم هندى|الفيلم الهندى/.test(t)) return 'indian';
+  if (/كوري|korean|كورية|k-drama|kdrama|أسطورة البحر الأزرق/.test(t)) return 'korean';
+  if (/أمريكي|american|هوليوود|hollywood|أمريكية|angelina|vin diesel|فين ديزل|رامبو|rambo/.test(t)) return 'american';
+  if (/مغربي|مغرب|maroc|darija|دارجة|مغربية|برامج رمضان/.test(t)) return 'moroccan';
   if (/فرنسي|français|france/.test(t))                          return 'french';
+  // Chinese CEO/billionaire romance drama — very distinctive YouTube pattern
+  if (/【|】/.test(title)) return 'chinese';
+  if (/\bceo\b/.test(t) && /(حب|زواج|فتا|زوجة|فقيرة|ملياردير|مليونير)/.test(t)) return 'chinese';
+  if (/(ملياردير|مليونير).{0,50}(وقع|يقع|يحب|زواج)/.test(t)) return 'chinese';
+  if (/(فتاة|فتيات).{0,50}(ملياردير|مليونير|ceo|ثري للغاية)/.test(t)) return 'chinese';
+  if (/زعيمة عصابة/.test(t)) return 'chinese';
   return 'other';
 }
 function detectLanguage(title) {
