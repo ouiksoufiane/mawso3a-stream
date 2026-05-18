@@ -1,11 +1,18 @@
 // Service Worker — الموسوعة ستريم
-const CACHE = 'mawso3a-v2';
+const CACHE = 'mawso3a-v3';
 const STATIC = [
   '/',
   '/index.html',
   '/films.html',
   '/series.html',
   '/search.html',
+  '/film-detail.html',
+  '/series-detail.html',
+  '/category.html',
+  '/watch.html',
+  '/404.html',
+  '/request.html',
+  '/legal.html',
   '/css/main.css',
   '/js/api.js',
   '/js/utils.js'
@@ -30,7 +37,7 @@ self.addEventListener('fetch', e => {
 
   // Always network-first for API calls and Supabase
   if (url.pathname.startsWith('/api/') || url.hostname.includes('supabase')) {
-    return; // bypass cache
+    return;
   }
 
   // Cache-first for static assets
@@ -44,7 +51,7 @@ self.addEventListener('fetch', e => {
             caches.open(CACHE).then(c => c.put(e.request, clone));
           }
           return res;
-        }).catch(() => cached || new Response('Offline', { status: 503 }));
+        }).catch(() => cached || caches.match('/404.html') || new Response('Offline', { status: 503 }));
       })
     );
   }

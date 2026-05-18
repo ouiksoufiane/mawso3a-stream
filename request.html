@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>طلب محتوى — الموسوعة ستريم</title>
+<meta name="description" content="اطلب إضافة فيلم أو مسلسل غير متوفر — سنحاول إيجاده وإضافته لمكتبتنا."/>
+<meta property="og:title"   content="طلب محتوى — الموسوعة ستريم"/>
+<meta property="og:type"    content="website"/>
+<link rel="canonical" href="https://mawso3a-stream.vercel.app/request.html"/>
+<link rel="manifest"  href="/manifest.json"/>
+<meta name="theme-color" content="#0d0d0f"/>
+<link rel="stylesheet"  href="css/main.css"/>
+<style>
+.req-wrap {
+  max-width: 640px; margin: 0 auto;
+  padding: calc(var(--nav-h) + 48px) 24px 80px;
+}
+.req-header { margin-bottom: 40px; }
+.req-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-dim); border: 1px solid rgba(232,160,32,0.3);
+  color: var(--accent); font-size: 11px; font-weight: 800;
+  padding: 4px 14px; border-radius: 20px; margin-bottom: 16px; letter-spacing: 0.5px;
+}
+.req-title { font-size: 36px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 12px; }
+.req-sub   { font-size: 15px; color: var(--text-dim); line-height: 1.7; }
+
+.req-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 32px; margin-bottom: 24px;
+}
+.req-card-title {
+  font-size: 14px; font-weight: 700; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px;
+}
+.form-row { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-dim); margin-bottom: 7px; }
+.form-label span { color: var(--accent); }
+.form-input, .form-select, .form-textarea {
+  width: 100%; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border2); border-radius: var(--r-sm);
+  color: var(--text); font-family: inherit; font-size: 14px;
+  padding: 11px 14px; transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none; border-color: var(--accent); background: rgba(232,160,32,0.04);
+}
+.form-select option { background: #181818; }
+.form-textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width:600px) { .form-row-2 { grid-template-columns: 1fr; } }
+
+.req-submit {
+  width: 100%; padding: 14px; border-radius: var(--r-sm);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #000; font-size: 15px; font-weight: 800; font-family: inherit;
+  cursor: pointer; transition: all 0.25s; box-shadow: 0 4px 20px var(--accent-glow);
+  border: none;
+}
+.req-submit:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.req-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.req-success {
+  display: none; text-align: center; padding: 48px 24px;
+  background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2);
+  border-radius: var(--r-lg);
+}
+.req-success-icon { font-size: 48px; margin-bottom: 16px; }
+.req-success-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.req-success-sub { font-size: 14px; color: var(--text-dim); }
+
+.req-note {
+  background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.18);
+  border-radius: var(--r); padding: 14px 18px;
+  font-size: 13px; color: rgba(240,240,240,0.7); line-height: 1.7;
+}
+.req-note strong { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<nav class="nav solid">
+  <a href="index.html" class="nav-logo">الموسوعة <em>ستريم</em></a>
+  <div class="nav-links">
+    <a href="index.html"  class="nav-link">الرئيسية</a>
+    <a href="films.html"  class="nav-link">الأفلام</a>
+    <a href="series.html" class="nav-link">المسلسلات</a>
+  </div>
+  <div class="nav-right">
+    <a href="search.html" class="nav-icon-btn keep" title="بحث">🔍</a>
+  </div>
+</nav>
+
+<div class="req-wrap">
+  <div class="req-header">
+    <div class="req-eyebrow">📬 طلب محتوى</div>
+    <h1 class="req-title">اطلب فيلمًا أو مسلسلًا</h1>
+    <p class="req-sub">لم تجد ما تبحث عنه؟ أخبرنا وسنحاول إضافته لمكتبتنا في أقرب وقت.</p>
+  </div>
+
+  <!-- Success state -->
+  <div class="req-success" id="successBox">
+    <div class="req-success-icon">✅</div>
+    <div class="req-success-title">تم إرسال طلبك!</div>
+    <div class="req-success-sub">سنراجعه ونحاول إيجاده وإضافته في أقرب فرصة. شكراً لمساعدتك في بناء المكتبة.</div>
+    <a href="index.html" class="btn btn-ghost btn-sm" style="margin-top:20px;display:inline-flex">🏠 العودة للرئيسية</a>
+  </div>
+
+  <!-- Form -->
+  <form id="reqForm">
+    <div class="req-card">
+      <div class="req-card-title">📋 معلومات المحتوى</div>
+
+      <div class="form-row">
+        <label class="form-label" for="fTitle">اسم الفيلم / المسلسل <span>*</span></label>
+        <input class="form-input" id="fTitle" type="text" placeholder="مثال: Squid Game أو لعبة الحمار" required maxlength="200"/>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-row" style="margin-bottom:0">
+          <label class="form-label" for="fType">النوع <span>*</span></label>
+          <select class="form-select" id="fType" required>
+            <option value="">اختر…</option>
+            <option value="film">🎬 فيلم</option>
+            <option value="series">📺 مسلسل</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin-bottom:0">
+          <label class="form-label" for="fOrigin">البلد / الأصل</label>
+          <select class="form-select" id="fOrigin">
+            <option value="">غير محدد</option>
+            <option value="turkish">🇹🇷 تركي</option>
+            <option value="indian">🇮🇳 هندي</option>
+            <option value="korean">🇰🇷 كوري</option>
+            <option value="american">🇺🇸 أمريكي</option>
+            <option value="moroccan">🇲🇦 مغربي</option>
+            <option value="chinese">🇨🇳 صيني</option>
+            <option value="other">أخرى</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="req-card">
+      <div class="req-card-title">💬 تفاصيل إضافية</div>
+      <div class="form-row">
+        <label class="form-label" for="fNotes">ملاحظات (اختياري)</label>
+        <textarea class="form-textarea" id="fNotes" placeholder="رابط YouTube أو معلومات إضافية تساعدنا في إيجاده…" maxlength="500"></textarea>
+      </div>
+    </div>
+
+    <div class="req-note" style="margin-bottom:20px">
+      <strong>ملاحظة:</strong> نضيف فقط المحتوى المتاح على يوتيوب أو منصات عامة مشروعة. لن نتمكن من إضافة محتوى محمي بحقوق نشر أو متاح على منصات مدفوعة (Netflix، Shahid، إلخ).
+    </div>
+
+    <button class="req-submit" type="submit" id="submitBtn">📬 إرسال الطلب</button>
+  </form>
+</div>
+
+<footer class="footer">
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal">
+      <a href="index.html">الرئيسية</a>
+      <a href="legal.html#dmca">DMCA</a>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import { requestContent } from './js/api.js';
+
+document.getElementById('reqForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'جاري الإرسال…';
+
+  const title   = document.getElementById('fTitle').value.trim();
+  const type    = document.getElementById('fType').value;
+  const origin  = document.getElementById('fOrigin').value;
+  const notes   = document.getElementById('fNotes').value.trim();
+
+  try {
+    await requestContent({ title, type, origin, notes });
+    this.style.display = 'none';
+    document.getElementById('successBox').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch {
+    btn.disabled = false;
+    btn.textContent = '📬 إرسال الطلب';
+    alert('تعذر إرسال الطلب. حاول مجدداً.');
+  }
+});
+</script>
+</body>
+</html>

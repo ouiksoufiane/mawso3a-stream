@@ -1,20 +1,40 @@
 # الموسوعة ستريم
 
-Plateforme de catalogue vidéo arabe — films et séries doublés en arabe et darija, auto-alimentée via YouTube API et n8n.
+Catalogue vidéo arabe — films et séries doublés en arabe et darija, alimenté automatiquement via YouTube, Dailymotion, Archive.org et Vimeo.
 
-**Site live :** [mawso3a-stream.vercel.app](https://mawso3a-stream.vercel.app)
+**Site live :** [mawso3a-stream.vercel.app](https://mawso3a-stream.vercel.app)  
+**GitHub :** [ouiksoufiane/mawso3a-stream](https://github.com/ouiksoufiane/mawso3a-stream)
 
 ---
 
 ## Stack
 
 | Couche | Technologie |
-|---|---|
-| Frontend | HTML/CSS/JS statique (vanilla, modules ES) |
-| Backend | Vercel Serverless Functions (Node.js) |
-| Base de données | Supabase (PostgreSQL + REST API + RLS) |
-| Automatisation | n8n (7 workflows) |
+|--------|-------------|
+| Frontend | HTML/CSS/JS statique (vanilla ES modules, PWA) |
+| Backend | Vercel Serverless Functions (Node.js ES modules) |
+| Base de données | Supabase PostgreSQL + REST API + RLS |
+| Automatisation | n8n cloud — 16 workflows |
 | Déploiement | Vercel (GitHub auto-deploy) |
+
+---
+
+## Architecture pipeline
+
+```
+Sources externes (YouTube / Dailymotion / Archive.org / Vimeo)
+    ↓  n8n workflows 01-06
+discovery_candidates  (staging — n8n écrit ICI uniquement)
+    ↓  n8n workflow 08 (duplicate detector)
+    ↓  n8n workflow 09 (quality scorer — score /100)
+    ↓  n8n workflow 10 (moderation agent)
+    ↓  n8n workflow 11 (publisher)
+content / episodes / content_sources  (production)
+    ↓
+Frontend public (anon — RLS read-only, status='active' uniquement)
+```
+
+Règle absolue : **n8n n'écrit jamais directement dans `content`.**
 
 ---
 
@@ -23,187 +43,184 @@ Plateforme de catalogue vidéo arabe — films et séries doublés en arabe et d
 ```
 mawso3a-stream/
 ├── api/
-│   ├── import.js              # Import YouTube + vérification liens
+│   ├── import.js              # Import YouTube + vérification liens (legacy)
+│   ├── candidates.js          # Endpoint staging pipeline (submit/log/update-keyword)
+│   ├── publish.js             # Scorer + publisher candidates → content
 │   ├── status.js              # Health check
-│   ├── report-dead-link.js   # Rapport lien mort (public)
-│   ├── request-content.js    # Demande contenu (public)
+│   ├── report-dead-link.js    # Rapport lien mort (public)
+│   ├── request-content.js     # Demande de contenu (public)
+│   ├── refresh-metadata.js    # Enrichissement TMDB/OMDb
+│   ├── sitemap.js             # Sitemap XML dynamique
 │   └── admin/
-│       └── moderate.js        # Modération admin (token requis)
-├── css/
-│   └── main.css               # Design system complet
+│       └── moderate.js        # Dashboard admin (Bearer N8N_SECRET)
+│
 ├── js/
-│   ├── api.js                 # Client Supabase REST
-│   └── utils.js               # Helpers UI (badges, cards, CW, FAV)
-├── n8n/
-│   ├── 01-auto-discover-films.json
-│   ├── 02-auto-discover-series.json
-│   ├── 03-verify-library.json
-│   ├── 04-metadata-enrichment.json
-│   ├── 05-quality-checker.json
-│   ├── 06-moderation.json
-│   └── 07-trend-hunter.json
-├── index.html                 # Accueil
-├── films.html                 # Catalogue films
-├── series.html                # Catalogue séries
-├── series-detail.html         # Détail série + épisodes
-├── watch.html                 # Lecteur
-├── search.html                # Recherche
-├── admin.html                 # Dashboard admin
-├── legal.html                 # Légal (privacy, DMCA, CGU)
-├── 404.html                   # Page 404
-├── robots.txt                 # SEO
-├── schema.sql                 # Schema Supabase complet
-├── vercel.json                # Config Vercel
-└── .env.example               # Variables d'environnement
+│   ├── api.js                 # Client Supabase (anon, read-only)
+│   └── utils.js               # esc(), badges, CW, FAV, cards, skeleton
+│
+├── css/main.css               # Design système complet (dark, RTL, Cairo)
+│
+├── index.html                 # Accueil (hero, sliders, stats)
+├── films.html                 # Catalogue films (filtres, pagination)
+├── series.html                # Catalogue séries (filtres, pagination)
+├── film-detail.html           # Détail film + lecteur inline + JSON-LD
+├── series-detail.html         # Détail série + liste épisodes + JSON-LD
+├── watch.html                 # Lecteur épisodes + sidebar + JSON-LD
+├── category.html              # Page catégorie universelle (origin/category/language/preset)
+├── search.html                # Recherche multi-critères
+├── request.html               # Formulaire demande de contenu
+├── 404.html                   # Page erreur
+├── legal.html                 # DMCA / Confidentialité / CGU
+├── admin.html                 # Dashboard admin (protégé par N8N_SECRET)
+│
+├── n8n/                       # 16 workflows JSON (importer dans n8n)
+│   ├── 00-seed-keywords.json
+│   ├── 01-trend-hunter.json
+│   ├── 02-youtube-discover-films.json
+│   ├── 03-youtube-discover-series.json
+│   ├── 04-dailymotion-discover.json
+│   ├── 05-archive-org-discover.json
+│   ├── 06-vimeo-discover.json
+│   ├── 07-metadata-enrichment.json
+│   ├── 08-duplicate-detector.json
+│   ├── 09-quality-checker.json
+│   ├── 10-moderation-agent.json
+│   ├── 11-publisher.json
+│   ├── 12-link-verifier.json
+│   ├── 13-keyword-learning.json
+│   ├── 14-provider-health-monitor.json
+│   └── 15-sitemap-seo-refresh.json
+│
+├── schema.sql                 # Schéma Supabase complet (idempotent)
+├── manifest.json              # PWA manifest
+├── sw.js                      # Service Worker (cache-first static)
+├── robots.txt                 # SEO robots
+├── vercel.json                # Config Vercel (timeouts, headers CSP, rewrites)
+├── .env.example               # Toutes les variables d'environnement
+└── package.json
 ```
 
 ---
 
 ## Variables d'environnement
 
-Copier `.env.example` → configurer dans **Vercel Dashboard > Project > Settings > Environment Variables** :
+À configurer dans **Vercel Dashboard → Project → Settings → Environment Variables** :
 
-| Variable | Description | Obligatoire |
-|---|---|---|
-| `SUPABASE_SERVICE_KEY` | Clé service Supabase (server-side uniquement) | ✅ |
-| `N8N_SECRET` | Token Bearer pour les endpoints API | ✅ |
-| `YOUTUBE_API_KEY` | Clé YouTube Data API v3 | ✅ (workflows) |
-| `TMDB_API_KEY` | Clé TMDB pour enrichissement métadonnées | Optionnel |
+| Variable | Obligatoire | Description |
+|----------|-------------|-------------|
+| `SUPABASE_SERVICE_KEY` | ✅ | Clé service Supabase (server-side uniquement) |
+| `N8N_SECRET` | ✅ | Token Bearer pour tous les appels n8n → /api/* |
+| `YOUTUBE_API_KEY` | ✅ | YouTube Data API v3 |
+| `TMDB_API_KEY` | Optionnel | Enrichissement métadonnées (posters, synopsis) |
+| `OMDB_API_KEY` | Optionnel | Métadonnées fallback (1000/jour gratuit) |
+| `VIMEO_ACCESS_TOKEN` | Optionnel | Discovery Vimeo |
+| `DAILYMOTION_API_KEY` | Optionnel | Discovery Dailymotion |
+| `DAILYMOTION_SECRET` | Optionnel | Auth Dailymotion |
 
-Dans **n8n > Settings > Variables** :
-
-| Variable | Valeur |
-|---|---|
-| `N8N_SECRET` | Même valeur que Vercel |
-| `SUPABASE_ANON_KEY` | Clé JWT anon — Supabase Dashboard > Settings > API > `anon public` |
-| `SUPABASE_SERVICE_KEY` | Clé service Supabase |
-| `TMDB_API_KEY` | Optionnel |
+Les mêmes variables (`N8N_SECRET`, `YOUTUBE_API_KEY`, etc.) doivent aussi être configurées dans **n8n → Settings → Variables**.
 
 ---
 
-## Déploiement
+## Base de données Supabase
 
-### 1. Supabase
+### Tables principales
+| Table | Description |
+|-------|-------------|
+| `content` | Films et séries (status=active visible public) |
+| `episodes` | Épisodes rattachés à content |
+| `content_sources` | Sources multi-plateforme par contenu/épisode |
+| `discovery_candidates` | Staging pipeline (n8n → ici en premier) |
+| `keyword_queue` | Mots-clés avec priorité auto-ajustée |
+| `provider_health` | État des providers (YouTube, DM, Archive…) |
+| `keyword_performance` | Log par run de keyword |
+| `dead_links` | Liens signalés morts (3 rapports → hidden) |
+| `content_requests` | Demandes utilisateurs |
 
-1. Créer un projet sur [supabase.com](https://supabase.com)
-2. Ouvrir **SQL Editor**
-3. Exécuter `schema.sql` en entier
-4. Récupérer : Project URL, anon key, service role key
+### Appliquer le schéma
+1. Aller sur [app.supabase.com](https://app.supabase.com) → SQL Editor
+2. Copier-coller le contenu de `schema.sql` et exécuter
 
-### 2. Vercel
+---
+
+## Déploiement Vercel
 
 ```bash
-# Lier le projet (déjà fait si clone depuis GitHub)
-vercel link
+# Clone + install
+git clone https://github.com/ouiksoufiane/mawso3a-stream.git
+cd mawso3a-stream
+npm install
 
-# Configurer les variables
-vercel env add SUPABASE_SERVICE_KEY
-vercel env add N8N_SECRET
-vercel env add YOUTUBE_API_KEY
-
-# Déployer
+# Deploy
 vercel --prod
 ```
 
-Ou simplement push sur `main` — GitHub déclenche auto-deploy.
-
-### 3. n8n
-
-1. Importer les fichiers `n8n/*.json` via **Workflows > Import from file**
-2. Configurer les variables dans **Settings > Variables**
-3. Activer les workflows souhaités
+Le déploiement est automatique à chaque push sur `main`.
 
 ---
 
-## Endpoints API
+## ZIP propre pour livraison
 
-Tous les endpoints sauf `report-dead-link` et `request-content` requièrent `Authorization: Bearer <N8N_SECRET>`.
-
-| Endpoint | Méthode | Description |
-|---|---|---|
-| `GET /api/import?action=status` | GET | Health check |
-| `POST /api/import?action=search-youtube` | POST | Chercher sur YouTube |
-| `POST /api/import?action=import-film` | POST | Importer un film |
-| `POST /api/import?action=import-series` | POST | Créer une série |
-| `POST /api/import?action=import-episode` | POST | Ajouter un épisode (ID série requis) |
-| `POST /api/import?action=smart-import-episode` | POST | Import épisode avec détection série automatique |
-| `POST /api/import?action=import-batch` | POST | Import batch (max 100) |
-| `POST /api/import?action=verify` | POST | Vérifier des liens YouTube |
-| `POST /api/refresh-metadata` | POST | Rafraîchir métadonnées YouTube/TMDB |
-| `POST /api/report-dead-link` | POST | Signaler lien mort — auto-masqué après 3 signalements (public) |
-| `POST /api/request-content` | POST | Demander du contenu (public) |
-| `GET /sitemap.xml` | GET | Sitemap XML dynamique (rewrite → `/api/sitemap`) |
-| `GET /api/admin/moderate?action=list-pending` | GET | Lister pending |
-| `POST /api/admin/moderate?action=approve` | POST | Approuver contenu |
-| `POST /api/admin/moderate?action=hide` | POST | Masquer contenu |
-| `POST /api/admin/moderate?action=update` | POST | Modifier métadonnées |
+```bash
+zip -r mawso3a-stream.zip . \
+  --exclude "*.git*" \
+  --exclude "*node_modules*" \
+  --exclude "*.vercel*" \
+  --exclude "*.DS_Store" \
+  --exclude "*.env" \
+  --exclude "*.env.local"
+```
 
 ---
 
 ## Workflows n8n
 
-| Fichier | Fréquence | Description |
-|---|---|---|
-| `01-auto-discover-films.json` | Toutes les 6h | Découverte films YouTube |
-| `02-auto-discover-series.json` | Quotidien | Découverte séries YouTube |
-| `03-verify-library.json` | Hebdomadaire | Vérifie liens morts |
-| `04-metadata-enrichment.json` | Hebdomadaire | Enrichit avec TMDB |
-| `05-quality-checker.json` | Quotidien | Score qualité → auto-publish |
-| `06-moderation.json` | Quotidien | Détecte trailers/spam → masque |
-| `07-trend-hunter.json` | Toutes les 12h | Import contenus tendances |
+Importer les 16 fichiers `n8n/*.json` dans n8n (Settings → Import workflow).
+
+| # | Workflow | Déclencheur |
+|---|----------|-------------|
+| 00 | Seed keywords | Manuel |
+| 01 | Trend Hunter | Quotidien |
+| 02 | YouTube → Films | Toutes les 6h |
+| 03 | YouTube → Séries | Toutes les 6h |
+| 04 | Dailymotion | Quotidien |
+| 05 | Archive.org | Hebdomadaire |
+| 06 | Vimeo | Hebdomadaire |
+| 07 | Metadata Enrichment | Quotidien |
+| 08 | Duplicate Detector | Quotidien |
+| 09 | Quality Checker | Quotidien |
+| 10 | Moderation Agent | Quotidien |
+| 11 | Publisher | Quotidien |
+| 12 | Link Verifier | Quotidien |
+| 13 | Keyword Learning | Hebdomadaire |
+| 14 | Provider Health Monitor | Toutes les 6h |
+| 15 | Sitemap & SEO Refresh | Hebdomadaire |
 
 ---
 
-## Architecture de sécurité
+## Scoring qualité
 
-- **Frontend** : utilise la clé anon Supabase (intentionnellement publique) — RLS `USING (status = 'active')` : seul le contenu actif est exposé
-- **Backend API** : utilise la service role key (variable d'env uniquement, jamais dans le frontend)
-- **Admin** : toutes les mutations passent par `/api/admin/moderate` avec `Authorization: Bearer <N8N_SECRET>`
-- **RLS** : `anon` = SELECT WHERE `status = 'active'` uniquement ; épisodes accessibles seulement si la série parente est active ; `service_role` = accès total
-- **XSS** : toutes les valeurs HTML échappées via `esc()` (admin.html inline + utils.js)
-- **CORS** : restreint au domaine Vercel du projet uniquement
-- **Dead links** : `POST /api/report-dead-link` appelle la fonction SQL `report_dead_link()` — atomique, incrémente le compteur, masque auto après 3 signalements
+| Points | Critère |
+|--------|---------|
+| +25 | Embeddable confirmé |
+| +20 | Durée correcte (film ≥35min, épisode ≥15min) |
+| +15 | Titre arabe présent |
+| +10 | Poster/thumbnail |
+| +8  | Année valide |
+| +6  | Langue connue |
+| +6  | Origine connue |
+| +6  | Plateforme de confiance (YouTube) |
+| +4  | Catégorie présente |
 
----
-
-## Fonctionnalités
-
-- **Catalogue** : films + séries avec filtres (origine, langue, année, catégorie)
-- **Lecteur** : YouTube embed, épisodes précédent/suivant, sidebar épisodes
-- **Continuer à regarder** : localStorage, max 50 entrées
-- **Favoris** : localStorage
-- **Signalement** : lien mort → auto-masqué après 3 signalements
-- **Recherche** : titre arabe + titre original, suggestions rapides
-- **Admin** : stats, modération, import manuel, logs
-- **Automatisation** : 7 workflows n8n, qualité auto, vérification hebdomadaire
-- **SEO** : meta tags, OG, Twitter cards, robots.txt
-- **i18n** : interface 100% arabe (RTL), contenu multilingue
+**Seuils :** ≥85 → `active`, 60-84 → `pending_review`, <60 → `rejected`  
+**Rejet automatique :** non-embeddable, durée trop courte, trailer détecté
 
 ---
 
-## Prochaines améliorations
+## Sécurité
 
-- [x] Exécuter `schema.sql` dans Supabase (tables + RPCs)
-- [x] Sitemap XML dynamique — `GET /sitemap.xml` → `/api/sitemap` (rewrite Vercel)
-- [x] Endpoint `report-dead-link` atomique via RPC SQL — auto-masquage après 3 signalements
-- [ ] Configurer `YOUTUBE_API_KEY` dans Vercel pour activer les workflows n8n
-- [ ] Activer workflow 04 avec `TMDB_API_KEY` pour les posters manquants
-- [ ] Authentification admin complète (Supabase Auth)
-- [ ] Support multi-sources (Dailymotion, Archive.org, Vimeo) — infrastructure prête dans la table `sources` du schéma ; workflows n8n à étendre
-- [ ] Notifications push pour nouveaux épisodes (Web Push API)
-- [ ] PWA (manifest.json + service worker)
-- [ ] Page catégories dédiées (Top Maroc, Turc, Coréen, etc.)
-
----
-
-## Sources de contenu
-
-La table `sources` du schéma est prête pour gérer plusieurs plateformes. Actuellement seul YouTube est utilisé.
-
-| Plateforme | Statut | Type | Notes |
-|---|---|---|---|
-| YouTube | ✅ Actif | chaînes / playlists / recherche | Workflows 01, 02, 07 |
-| TMDB | ⚙️ Optionnel | enrichissement métadonnées | Workflow 04, endpoint `/api/refresh-metadata` |
-| Dailymotion | 🔜 Prévu | embed | Structure `sources` prête, workflow à créer |
-| Archive.org | 🔜 Prévu | films domaine public | Structure `sources` prête, workflow à créer |
-| Vimeo | 🔜 Prévu | embed | Structure `sources` prête, workflow à créer |
+- Aucun secret dans le code — variables d'environnement uniquement
+- RLS Supabase : anon = lecture seule `status='active'`
+- Admin protégé par Bearer `N8N_SECRET`
+- CSP, X-Frame-Options, X-XSS-Protection dans `vercel.json`
+- Fonction `esc()` sur toutes les données externes (protection XSS)
+- `SUPABASE_SERVICE_KEY` jamais exposé au frontend
