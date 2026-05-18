@@ -1,0 +1,53 @@
+{
+  "name": "الموسوعة — 01 Trend Hunter (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "trend-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Trending Arabic search terms to discover as new keywords\nconst newTerms = [\n  { keyword: 'مسلسل 2025 مدبلج', lang: 'ar', category: 'drama', priority: 8 },\n  { keyword: 'فيلم 2025 عربي', lang: 'ar', category: 'drama', priority: 8 },\n  { keyword: 'مسلسل جديد مدبلج', lang: 'ar', category: 'drama', priority: 7 },\n  { keyword: 'series arabic dubbed 2025', lang: 'en', category: 'drama', priority: 7 },\n  { keyword: 'film arabe complet 2025', lang: 'fr', category: 'drama', priority: 6 }\n];\nreturn newTerms.map(t => ({ json: t }));"
+      },
+      "id": "trend-build",
+      "name": "Build Trend Terms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=add-keyword",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { keyword: $json.keyword, lang: $json.lang, category: $json.category, priority: $json.priority } }}"
+        }
+      },
+      "id": "trend-add",
+      "name": "Add to Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":        { "main": [[{ "node": "Build Trend Terms", "type": "main", "index": 0 }]] },
+    "Build Trend Terms":{ "main": [[{ "node": "Add to Queue",      "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["discovery","keywords"]
+}

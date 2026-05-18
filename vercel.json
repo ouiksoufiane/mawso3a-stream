@@ -1,9 +1,11 @@
 {
   "functions": {
     "api/import.js":              { "maxDuration": 60 },
+    "api/candidates.js":          { "maxDuration": 30 },
+    "api/publish.js":             { "maxDuration": 60 },
     "api/status.js":              { "maxDuration": 10 },
     "api/report-dead-link.js":    { "maxDuration": 10 },
-    "api/request-content.js":    { "maxDuration": 10 },
+    "api/request-content.js":     { "maxDuration": 10 },
     "api/refresh-metadata.js":    { "maxDuration": 30 },
     "api/sitemap.js":             { "maxDuration": 15 },
     "api/admin/moderate.js":      { "maxDuration": 30 }

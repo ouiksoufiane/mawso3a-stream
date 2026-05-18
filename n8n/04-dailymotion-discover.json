@@ -1,0 +1,77 @@
+{
+  "name": "الموسوعة — 04 Dailymotion Discovery (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "dm-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queries = [\n  { q: 'مسلسل مدبلج', origin: 'other',   category: 'drama',   lang: 'ar_dubbed' },\n  { q: 'فيلم عربي',   origin: 'moroccan', category: 'drama',   lang: 'ar' },\n  { q: 'film marocain complet', origin: 'moroccan', category: 'drama', lang: 'ar' },\n  { q: 'مسلسل تركي مدبلج', origin: 'turkish', category: 'drama', lang: 'ar_dubbed' },\n  { q: 'مسلسل هندي مدبلج', origin: 'indian',  category: 'drama', lang: 'ar_dubbed' }\n];\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "dm-queries",
+      "name": "DM Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.dailymotion.com/videos?search={{ encodeURIComponent($json.q) }}&fields=id,title,duration,thumbnail_url,embed_url,allow_embed,status,created_time&limit=25&sort=relevance&longer_than=900",
+        "options": { "timeout": 15000 }
+      },
+      "id": "dm-search",
+      "name": "Search Dailymotion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst query = $('DM Queries').item.json;\nconst list = body?.list || [];\n\nconst MIN_DUR = 900;\n\nconst candidates = list\n  .filter(v => v.allow_embed && v.status === 'published' && (v.duration || 0) >= MIN_DUR)\n  .map(v => {\n    const isFilm = (v.duration || 0) >= 2100;\n    const year = v.created_time ? new Date(v.created_time * 1000).getFullYear() : null;\n    return {\n      platform: 'dailymotion',\n      platform_id: v.id,\n      title_raw: v.title || '',\n      type: isFilm ? 'film' : 'episode',\n      origin: query.origin || 'other',\n      language: query.lang || 'ar_dubbed',\n      category: query.category || 'drama',\n      year,\n      duration_sec: v.duration || null,\n      poster_url: v.thumbnail_url || null,\n      embed_url: v.embed_url || `https://www.dailymotion.com/embed/video/${v.id}`,\n      embeddable: true,\n      keyword: query.q,\n      source_workflow: '04-dailymotion-discover'\n    };\n  });\n\nconsole.log(`[DM] '${query.q}' → ${candidates.length} candidates`);\nreturn [{ json: { candidates, query: query.q } }];"
+      },
+      "id": "dm-extract",
+      "name": "Extract Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/candidates?action=submit",
+        "options": { "timeout": 30000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { candidates: $json.candidates } }}"
+        }
+      },
+      "id": "dm-submit",
+      "name": "Submit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":          { "main": [[{ "node": "DM Queries",         "type": "main", "index": 0 }]] },
+    "DM Queries":         { "main": [[{ "node": "Search Dailymotion", "type": "main", "index": 0 }]] },
+    "Search Dailymotion": { "main": [[{ "node": "Extract Candidates", "type": "main", "index": 0 }]] },
+    "Extract Candidates": { "main": [[{ "node": "Submit",             "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["discovery","dailymotion"]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "الموسوعة — 15 Sitemap SEO Refresh (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "seo-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mawso3a-stream.vercel.app/sitemap.xml",
+        "options": { "timeout": 20000 }
+      },
+      "id": "seo-gen",
+      "name": "Refresh Sitemap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.google.com/ping?sitemap=https%3A%2F%2Fmawso3a-stream.vercel.app%2Fsitemap.xml",
+        "options": { "timeout": 15000 }
+      },
+      "id": "seo-google",
+      "name": "Ping Google",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.bing.com/ping?sitemap=https%3A%2F%2Fmawso3a-stream.vercel.app%2Fsitemap.xml",
+        "options": { "timeout": 15000 }
+      },
+      "id": "seo-bing",
+      "name": "Ping Bing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('[SEO] Sitemap refreshed and pinged to Google + Bing');\nreturn [{ json: { ok: true, refreshed_at: new Date().toISOString() } }];"
+      },
+      "id": "seo-done",
+      "name": "Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":      { "main": [[{ "node": "Refresh Sitemap", "type": "main", "index": 0 }]] },
+    "Refresh Sitemap":{ "main": [[{ "node": "Ping Google",     "type": "main", "index": 0 }]] },
+    "Ping Google":    { "main": [[{ "node": "Ping Bing",        "type": "main", "index": 0 }]] },
+    "Ping Bing":      { "main": [[{ "node": "Done",             "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["seo","sitemap"]
+}

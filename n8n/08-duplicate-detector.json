@@ -1,0 +1,76 @@
+{
+  "name": "الموسوعة — 08 Duplicate Detector (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "dup-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/publish?action=score",
+        "options": { "timeout": 55000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={ \"limit\": 200 }"
+        }
+      },
+      "id": "dup-score",
+      "name": "Run Score (Marks Dupes)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=purge-rejected",
+        "options": { "timeout": 15000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={ \"days\": 14 }"
+        }
+      },
+      "id": "dup-purge",
+      "name": "Purge Old Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const score = $('Run Score (Marks Dupes)').item.json;\nconst purge = $input.first().json;\nconsole.log(`[DupDetector] dupes=${score.dupes} rejected=${score.rejected} purged=ok`);\nreturn [{ json: { scored: score.processed, dupes: score.dupes, purged: purge.ok } }];"
+      },
+      "id": "dup-log",
+      "name": "Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":               { "main": [[{ "node": "Run Score (Marks Dupes)", "type": "main", "index": 0 }]] },
+    "Run Score (Marks Dupes)": { "main": [[{ "node": "Purge Old Rejected",      "type": "main", "index": 0 }]] },
+    "Purge Old Rejected":      { "main": [[{ "node": "Log",                     "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["quality","duplicates"]
+}

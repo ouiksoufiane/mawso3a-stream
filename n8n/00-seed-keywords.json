@@ -1,0 +1,44 @@
+{
+  "name": "الموسوعة — 00 Seed Keywords (Manuel)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "seed-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mawso3a-stream.vercel.app/api/publish?action=next-keywords&limit=10",
+        "options": { "timeout": 15000 },
+        "headers": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" }]
+        }
+      },
+      "id": "seed-check",
+      "name": "Check Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconsole.log('[Seed] Top keywords ready:', JSON.stringify(data.keywords?.map(k=>k.keyword)));\nreturn [{ json: { ok: true, count: data.keywords?.length || 0, keywords: data.keywords } }];"
+      },
+      "id": "seed-report",
+      "name": "Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "Check Keywords", "type": "main", "index": 0 }]] },
+    "Check Keywords":  { "main": [[{ "node": "Report",         "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["seed","setup"]
+}

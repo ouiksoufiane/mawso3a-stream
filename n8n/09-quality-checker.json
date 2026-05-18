@@ -1,0 +1,53 @@
+{
+  "name": "الموسوعة — 09 Quality Checker (كل ساعة)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "qc-trigger",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/publish?action=score",
+        "options": { "timeout": 55000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={ \"limit\": 150 }"
+        }
+      },
+      "id": "qc-score",
+      "name": "Score Candidates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconsole.log(`[QualityChecker] processed=${r.processed} scored=${r.scored} rejected=${r.rejected} dupes=${r.dupes}`);\nreturn [{ json: r }];"
+      },
+      "id": "qc-log",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Every Hour":       { "main": [[{ "node": "Score Candidates", "type": "main", "index": 0 }]] },
+    "Score Candidates": { "main": [[{ "node": "Log Result",        "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["quality","scoring"]
+}

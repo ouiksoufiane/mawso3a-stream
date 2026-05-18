@@ -1,0 +1,78 @@
+{
+  "name": "الموسوعة — 14 Provider Health Monitor (كل 6 ساعات)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 6 }] }
+      },
+      "id": "ph-trigger",
+      "name": "Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Define health checks for each provider\nreturn [\n  { id: 'youtube',    name: 'YouTube',    url: `https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${process.env.YT_API_KEY}` },\n  { id: 'dailymotion',name: 'DM',         url: 'https://api.dailymotion.com/video/x7tgd2g?fields=id,title' },\n  { id: 'archive',    name: 'Archive.org', url: 'https://archive.org/advancedsearch.php?q=mediatype:movies&output=json&rows=1' },\n  { id: 'tmdb',       name: 'TMDB',       url: `https://api.themoviedb.org/3/configuration?api_key=${process.env.TMDB_API_KEY}` }\n].map(p => ({ json: p }));"
+      },
+      "id": "ph-checks",
+      "name": "Build Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "options": { "timeout": 8000 },
+        "onError": "continueErrorOutput"
+      },
+      "id": "ph-ping",
+      "name": "Ping Provider",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Build Checks').item.json;\nconst result = $input.first().json;\nconst isError = !!result.error || result.httpCode >= 400;\n\nreturn [{\n  json: {\n    id: prev.id,\n    ok: !isError,\n    quota_status: isError ? 'error' : 'ok',\n    last_success_at: isError ? undefined : new Date().toISOString(),\n    last_error_at:   isError ? new Date().toISOString() : undefined\n  }\n}];"
+      },
+      "id": "ph-assess",
+      "name": "Assess Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=update-provider",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ $json }}"
+        }
+      },
+      "id": "ph-update",
+      "name": "Update Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every 6 Hours": { "main": [[{ "node": "Build Checks",   "type": "main", "index": 0 }]] },
+    "Build Checks":  { "main": [[{ "node": "Ping Provider",  "type": "main", "index": 0 }]] },
+    "Ping Provider": { "main": [[{ "node": "Assess Health",  "type": "main", "index": 0 }]] },
+    "Assess Health": { "main": [[{ "node": "Update Health",  "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["monitoring","health"]
+}

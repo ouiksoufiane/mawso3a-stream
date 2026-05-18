@@ -1,0 +1,69 @@
+{
+  "name": "الموسوعة — 13 Keyword Learning (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "kl-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=list-keywords",
+        "options": { "timeout": 15000 },
+        "headers": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" }]
+        }
+      },
+      "id": "kl-fetch",
+      "name": "Fetch Keywords",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst keywords = data.items || [];\n\nconst updates = [];\nfor (const kw of keywords) {\n  // Adjust priority based on success rate\n  const rate = kw.success_rate || 0;\n  let newPriority = kw.priority;\n\n  if (kw.run_count >= 3) {\n    if (rate >= 60 && kw.priority < 10) newPriority = Math.min(10, kw.priority + 1);\n    else if (rate < 20 && kw.priority > 1) newPriority = Math.max(1, kw.priority - 1);\n    // Disable stagnant keywords (run 5+ times with 0% success)\n    if (kw.run_count >= 5 && rate === 0 && kw.active) {\n      updates.push({ id: kw.id, active: false, priority: kw.priority });\n      continue;\n    }\n  }\n\n  if (newPriority !== kw.priority) {\n    updates.push({ id: kw.id, priority: newPriority });\n  }\n}\n\nconsole.log(`[KeywordLearning] ${updates.length} updates`);\nreturn updates.map(u => ({ json: u }));"
+      },
+      "id": "kl-compute",
+      "name": "Compute Updates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=update-keyword",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ $json }}"
+        }
+      },
+      "id": "kl-update",
+      "name": "Update Keyword",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every Day":       { "main": [[{ "node": "Fetch Keywords",   "type": "main", "index": 0 }]] },
+    "Fetch Keywords":  { "main": [[{ "node": "Compute Updates",  "type": "main", "index": 0 }]] },
+    "Compute Updates": { "main": [[{ "node": "Update Keyword",   "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["keywords","learning","ai"]
+}

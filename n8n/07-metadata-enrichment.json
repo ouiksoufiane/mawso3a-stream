@@ -1,0 +1,108 @@
+{
+  "name": "الموسوعة — 07 Metadata Enrichment TMDB/OMDb (يومي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "days", "daysInterval": 1 }] }
+      },
+      "id": "meta-trigger",
+      "name": "Every Day",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=list-content&status=active&limit=30",
+        "options": { "timeout": 15000 },
+        "headers": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" }]
+        }
+      },
+      "id": "meta-fetch",
+      "name": "Fetch Content Without Poster",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst items = (data.items || []).filter(i => !i.poster_url || i.poster_url.includes('mqdefault'));\nreturn items.slice(0, 15).map(i => ({ json: i }));"
+      },
+      "id": "meta-filter",
+      "name": "Filter Needing Enrichment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.themoviedb.org/3/search/{{ $json.type === 'series' ? 'tv' : 'movie' }}?query={{ encodeURIComponent($json.title_ar) }}&language=ar&api_key={{ $env.TMDB_API_KEY }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "meta-tmdb",
+      "name": "TMDB Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const tmdb = $input.first().json;\nconst item = $('Filter Needing Enrichment').item.json;\n\nconst results = tmdb?.results || [];\nif (!results.length) return [{ json: { skip: true, id: item.id } }];\n\nconst top = results[0];\nconst posterPath = top.poster_path;\nconst backdropPath = top.backdrop_path;\nconst patch = {};\n\nif (posterPath) patch.poster_url = `https://image.tmdb.org/t/p/w500${posterPath}`;\nif (top.vote_average) patch.rating = Math.round(top.vote_average * 10) / 10;\nif (!item.year && (top.release_date || top.first_air_date)) {\n  patch.year = parseInt((top.release_date || top.first_air_date).slice(0,4)) || null;\n}\n\nif (!Object.keys(patch).length) return [{ json: { skip: true, id: item.id } }];\n\nreturn [{ json: { id: item.id, patch, skip: false } }];"
+      },
+      "id": "meta-build-patch",
+      "name": "Build Patch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip-check", "leftValue": "={{ $json.skip }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "meta-if-has-patch",
+      "name": "Has Patch?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=update",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { id: $json.id, ...$json.patch } }}"
+        }
+      },
+      "id": "meta-update",
+      "name": "Update Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    }
+  ],
+  "connections": {
+    "Every Day":                  { "main": [[{ "node": "Fetch Content Without Poster",  "type": "main", "index": 0 }]] },
+    "Fetch Content Without Poster":{ "main": [[{ "node": "Filter Needing Enrichment",    "type": "main", "index": 0 }]] },
+    "Filter Needing Enrichment":  { "main": [[{ "node": "TMDB Search",                   "type": "main", "index": 0 }]] },
+    "TMDB Search":                { "main": [[{ "node": "Build Patch",                    "type": "main", "index": 0 }]] },
+    "Build Patch":                { "main": [[{ "node": "Has Patch?",                     "type": "main", "index": 0 }]] },
+    "Has Patch?":                 { "main": [[{ "node": "Update Content",                 "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["metadata","tmdb","enrichment"]
+}

@@ -1,0 +1,80 @@
+{
+  "name": "الموسوعة — 06 Vimeo Discovery (أسبوعي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "vim-trigger",
+      "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queries = [\n  { q: 'arabic dubbed film', origin: 'other',    lang: 'ar_dubbed' },\n  { q: 'moroccan film darija', origin: 'moroccan', lang: 'ar' },\n  { q: 'film arabe complet',  origin: 'moroccan', lang: 'ar' }\n];\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "vim-queries",
+      "name": "Vimeo Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.vimeo.com/videos?query={{ encodeURIComponent($json.q) }}&filter=embeddable&filter_embeddable=true&min_duration=1800&per_page=25&fields=uri,name,duration,embed,pictures,privacy,release_time",
+        "options": { "timeout": 20000 },
+        "headers": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.VIMEO_ACCESS_TOKEN }}" }]
+        }
+      },
+      "id": "vim-search",
+      "name": "Search Vimeo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst query = $('Vimeo Queries').item.json;\nconst data = body?.data || [];\n\nconst MIN_DUR = 2100;\n\nconst candidates = data\n  .filter(v => {\n    const embeddable = v.embed?.badges?.embeddable || v.privacy?.embed === 'public';\n    return embeddable && (v.duration || 0) >= MIN_DUR;\n  })\n  .map(v => {\n    const vid = (v.uri || '').replace('/videos/', '');\n    const year = v.release_time ? new Date(v.release_time).getFullYear() : null;\n    const thumb = v.pictures?.sizes?.find(s => s.width >= 640)?.link ||\n                  v.pictures?.sizes?.[0]?.link || null;\n    return {\n      platform: 'vimeo',\n      platform_id: vid,\n      title_raw: v.name || '',\n      type: 'film',\n      origin: query.origin || 'other',\n      language: query.lang || 'ar_dubbed',\n      category: 'drama',\n      year,\n      duration_sec: v.duration || null,\n      poster_url: thumb,\n      embed_url: `https://player.vimeo.com/video/${vid}`,\n      embeddable: true,\n      keyword: query.q,\n      source_workflow: '06-vimeo-discover'\n    };\n  });\n\nconsole.log(`[Vimeo] '${query.q}' → ${candidates.length} candidates`);\nreturn [{ json: { candidates } }];"
+      },
+      "id": "vim-extract",
+      "name": "Extract Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/candidates?action=submit",
+        "options": { "timeout": 30000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { candidates: $json.candidates } }}"
+        }
+      },
+      "id": "vim-submit",
+      "name": "Submit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every Week":        { "main": [[{ "node": "Vimeo Queries",      "type": "main", "index": 0 }]] },
+    "Vimeo Queries":     { "main": [[{ "node": "Search Vimeo",       "type": "main", "index": 0 }]] },
+    "Search Vimeo":      { "main": [[{ "node": "Extract Candidates", "type": "main", "index": 0 }]] },
+    "Extract Candidates":{ "main": [[{ "node": "Submit",             "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["discovery","vimeo"]
+}

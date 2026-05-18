@@ -1,0 +1,108 @@
+{
+  "name": "الموسوعة — 12 Link Verifier (أسبوعي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "lv-trigger",
+      "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=list-content&status=active&limit=50",
+        "options": { "timeout": 20000 },
+        "headers": {
+          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" }]
+        }
+      },
+      "id": "lv-fetch",
+      "name": "Fetch Active Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst items = (data.items || []).filter(i => i.yt_id && !i.yt_id.startsWith('arc_'));\n// Only check YouTube items (Archive.org has stable links)\nreturn items.slice(0, 20).map(i => ({ json: { id: i.id, yt_id: i.yt_id } }));"
+      },
+      "id": "lv-filter",
+      "name": "Filter YT Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/youtube/v3/videos?part=status&id={{ $json.yt_id }}&key={{ $env.YT_API_KEY }}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "lv-check",
+      "name": "Check YT Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ytData = $input.first().json;\nconst item = $('Filter YT Items').item.json;\n\nconst videos = ytData?.items || [];\nconst isDead = videos.length === 0 || videos[0]?.status?.embeddable === false;\n\nif (isDead) {\n  console.warn(`[LinkVerifier] DEAD: ${item.yt_id} (content: ${item.id})`);\n}\n\nreturn [{ json: { id: item.id, yt_id: item.yt_id, dead: isDead } }];"
+      },
+      "id": "lv-assess",
+      "name": "Assess Link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [{ "id": "dead-check", "leftValue": "={{ $json.dead }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "lv-is-dead",
+      "name": "Is Dead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=hide",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { id: $json.id } }}"
+        }
+      },
+      "id": "lv-hide",
+      "name": "Hide Dead Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    }
+  ],
+  "connections": {
+    "Every Week":         { "main": [[{ "node": "Fetch Active Content", "type": "main", "index": 0 }]] },
+    "Fetch Active Content":{ "main": [[{ "node": "Filter YT Items",     "type": "main", "index": 0 }]] },
+    "Filter YT Items":    { "main": [[{ "node": "Check YT Status",      "type": "main", "index": 0 }]] },
+    "Check YT Status":    { "main": [[{ "node": "Assess Link",           "type": "main", "index": 0 }]] },
+    "Assess Link":        { "main": [[{ "node": "Is Dead?",              "type": "main", "index": 0 }]] },
+    "Is Dead?":           { "main": [[{ "node": "Hide Dead Content",     "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["maintenance","links"]
+}

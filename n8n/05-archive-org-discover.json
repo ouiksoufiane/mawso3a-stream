@@ -1,0 +1,77 @@
+{
+  "name": "الموسوعة — 05 Archive.org Discovery (أسبوعي)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "weeks", "weeksInterval": 1 }] }
+      },
+      "id": "arc2-trigger",
+      "name": "Every Week",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queries = [\n  { q: 'subject:(arabic dubbed) mediatype:movies', origin: 'american', lang: 'ar_dubbed' },\n  { q: 'collection:feature_films subject:(arabic) mediatype:movies', origin: 'american', lang: 'ar_dubbed' },\n  { q: 'subject:(مدبلج) mediatype:movies', origin: 'other', lang: 'ar_dubbed' },\n  { q: 'subject:(فيلم عربي) mediatype:movies', origin: 'moroccan', lang: 'ar' },\n  { q: 'subject:(bollywood arabic) mediatype:movies', origin: 'indian', lang: 'ar_dubbed' },\n  { q: 'collection:opensource_movies subject:(arabic) mediatype:movies', origin: 'other', lang: 'ar' }\n];\nreturn queries.map(q => ({ json: q }));"
+      },
+      "id": "arc2-queries",
+      "name": "Archive Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://archive.org/advancedsearch.php?q={{ encodeURIComponent($json.q) }}&output=json&rows=40&fl[]=identifier,title,description,year,avg_rating,runtime,mediatype&sort[]=downloads+desc",
+        "options": { "timeout": 25000 }
+      },
+      "id": "arc2-search",
+      "name": "Search Archive.org",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json;\nconst query = $('Archive Queries').item.json;\nconst docs = body?.response?.docs || [];\n\nconst MIN_DUR = 2100; // 35 min\n\nfunction parseRuntime(r) {\n  if (!r) return null;\n  if (typeof r === 'number') return r;\n  const s = String(r);\n  const parts = s.split(':').map(Number);\n  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];\n  if (parts.length === 2) return parts[0]*60 + parts[1];\n  return parseInt(s) || null;\n}\n\nconst candidates = docs\n  .filter(d => d.identifier && d.title)\n  .map(d => {\n    const dur = parseRuntime(d.runtime);\n    return {\n      platform: 'archive',\n      platform_id: d.identifier,\n      title_raw: d.title,\n      type: 'film',\n      origin: query.origin || 'other',\n      language: query.lang || 'ar_dubbed',\n      category: 'drama',\n      year: d.year ? parseInt(d.year) : null,\n      duration_sec: dur,\n      poster_url: `https://archive.org/services/img/${d.identifier}`,\n      embed_url: `https://archive.org/embed/${d.identifier}`,\n      embeddable: true,\n      keyword: query.q,\n      source_workflow: '05-archive-org-discover'\n    };\n  })\n  .filter(d => !d.duration_sec || d.duration_sec >= MIN_DUR);\n\nconsole.log(`[Archive] '${query.q}' → ${candidates.length} candidates`);\nreturn [{ json: { candidates, query: query.q } }];"
+      },
+      "id": "arc2-extract",
+      "name": "Extract Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/candidates?action=submit",
+        "options": { "timeout": 30000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { candidates: $json.candidates } }}"
+        }
+      },
+      "id": "arc2-submit",
+      "name": "Submit",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Every Week":        { "main": [[{ "node": "Archive Queries",    "type": "main", "index": 0 }]] },
+    "Archive Queries":   { "main": [[{ "node": "Search Archive.org", "type": "main", "index": 0 }]] },
+    "Search Archive.org":{ "main": [[{ "node": "Extract Candidates", "type": "main", "index": 0 }]] },
+    "Extract Candidates":{ "main": [[{ "node": "Submit",             "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["discovery","archive"]
+}

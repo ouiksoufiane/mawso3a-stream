@@ -110,6 +110,31 @@ export default async function handler(req, res) {
     return res.json({ ok: r.ok, items: r.data || [] });
   }
 
+  // ── LIST discovery candidates ─────────────────────────────────────────
+  if (req.method === 'GET' && action === 'list-candidates') {
+    const { status: cs, platform, limit = 50, offset = 0 } = req.query;
+    let path = `discovery_candidates?order=created_at.desc&limit=${Math.min(+limit||50,200)}&offset=${+offset||0}`;
+    if (cs) path += `&status=eq.${encodeURIComponent(cs)}`;
+    if (platform) path += `&platform=eq.${encodeURIComponent(platform)}`;
+    const r = await sb('GET', path, null, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok, items: r.data || [] });
+  }
+
+  // ── LIST keyword queue ─────────────────────────────────────────────────
+  if (req.method === 'GET' && action === 'list-keywords') {
+    const { active } = req.query;
+    let path = 'keyword_queue?order=priority.desc,keyword.asc&limit=200';
+    if (active === 'true') path += '&active=eq.true';
+    const r = await sb('GET', path, null, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok, items: r.data || [] });
+  }
+
+  // ── LIST provider health ───────────────────────────────────────────────
+  if (req.method === 'GET' && action === 'list-providers') {
+    const r = await sb('GET', 'provider_health?order=id.asc', null, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok, items: r.data || [] });
+  }
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   const { id, status, title_ar, description, poster_url, origin, language, category, year } = req.body || {};
@@ -186,6 +211,72 @@ export default async function handler(req, res) {
     const r = await sb('PATCH', `content?origin=eq.${encodeURIComponent(orig)}&status=eq.pending`,
       { status: 'active' }, SUPABASE_SERVICE);
     await logAction('bulk-approve', orig, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok });
+  }
+
+  // ── APPROVE CANDIDATE → promote to content ─────────────────────────────
+  if (action === 'approve-candidate') {
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const r = await sb('PATCH', `discovery_candidates?id=eq.${encodeURIComponent(id)}`,
+      { status: 'approved', reviewed_at: new Date().toISOString() }, SUPABASE_SERVICE);
+    await logAction('approve-candidate', id, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok });
+  }
+
+  // ── REJECT CANDIDATE ───────────────────────────────────────────────────
+  if (action === 'reject-candidate') {
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const reason = (req.body.reason || 'manual_reject').slice(0, 100);
+    const r = await sb('PATCH', `discovery_candidates?id=eq.${encodeURIComponent(id)}`,
+      { status: 'rejected', reject_reason: reason, reviewed_at: new Date().toISOString() }, SUPABASE_SERVICE);
+    await logAction('reject-candidate', id, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok });
+  }
+
+  // ── UPDATE PROVIDER HEALTH ─────────────────────────────────────────────
+  if (action === 'update-provider') {
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const patch = { updated_at: new Date().toISOString() };
+    if (req.body.enabled !== undefined)   patch.enabled = Boolean(req.body.enabled);
+    if (req.body.quota_status)            patch.quota_status = req.body.quota_status;
+    if (req.body.notes !== undefined)     patch.notes = String(req.body.notes).slice(0, 500);
+    if (req.body.used_today !== undefined) patch.used_today = parseInt(req.body.used_today) || 0;
+    const r = await sb('PATCH', `provider_health?id=eq.${encodeURIComponent(id)}`, patch, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok });
+  }
+
+  // ── UPDATE KEYWORD ─────────────────────────────────────────────────────
+  if (action === 'update-keyword') {
+    if (!id) return res.status(400).json({ error: 'id required' });
+    const patch = {};
+    if (req.body.priority !== undefined) patch.priority = Math.min(10, Math.max(1, parseInt(req.body.priority)));
+    if (req.body.active !== undefined)   patch.active = Boolean(req.body.active);
+    if (req.body.category)               patch.category = req.body.category;
+    if (!Object.keys(patch).length) return res.status(400).json({ error: 'No valid fields' });
+    const r = await sb('PATCH', `keyword_queue?id=eq.${encodeURIComponent(id)}`, patch, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok });
+  }
+
+  // ── ADD KEYWORD ────────────────────────────────────────────────────────
+  if (action === 'add-keyword') {
+    const { keyword: kw, lang, category: cat, priority: pri } = req.body || {};
+    if (!kw) return res.status(400).json({ error: 'keyword required' });
+    const r = await sb('POST', 'keyword_queue', {
+      keyword: kw.slice(0, 300),
+      lang: lang || 'ar',
+      category: cat || 'drama',
+      priority: Math.min(10, Math.max(1, parseInt(pri) || 5))
+    }, SUPABASE_SERVICE);
+    return res.json({ ok: r.ok || r.status === 409 });
+  }
+
+  // ── BULK PURGE old rejected candidates ────────────────────────────────
+  if (action === 'purge-rejected') {
+    const days = parseInt(req.body.days) || 7;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString();
+    const r = await sb('DELETE',
+      `discovery_candidates?status=in.(rejected,duplicate)&created_at=lt.${cutoff}`,
+      null, SUPABASE_SERVICE);
     return res.json({ ok: r.ok });
   }
 

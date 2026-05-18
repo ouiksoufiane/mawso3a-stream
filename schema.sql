@@ -415,3 +415,201 @@ CREATE POLICY "service_all_admin_actions" ON admin_actions     TO service_role U
 
 -- Grant RPC function execution to anon (view increment is public)
 GRANT EXECUTE ON FUNCTION increment_view(TEXT) TO anon;
+
+-- ─────────────────────────────────────────
+-- ARCHITECTURE V2 — INTELLIGENCE PIPELINE
+-- Run this section after the base schema
+-- ─────────────────────────────────────────
+
+-- Content table: new enrichment columns
+ALTER TABLE content ADD COLUMN IF NOT EXISTS primary_platform TEXT DEFAULT 'youtube';
+ALTER TABLE content ADD COLUMN IF NOT EXISTS embed_url        TEXT;
+ALTER TABLE content ADD COLUMN IF NOT EXISTS trailer_yt_id    TEXT;
+ALTER TABLE content ADD COLUMN IF NOT EXISTS rating           NUMERIC(3,1);
+ALTER TABLE content ADD COLUMN IF NOT EXISTS tags             TEXT[] DEFAULT '{}';
+ALTER TABLE content ADD COLUMN IF NOT EXISTS source_count     INTEGER DEFAULT 1;
+
+-- Staging table: n8n writes here, publisher promotes to content
+CREATE TABLE IF NOT EXISTS discovery_candidates (
+  id              TEXT PRIMARY KEY,
+  platform        TEXT NOT NULL DEFAULT 'youtube',
+  platform_id     TEXT NOT NULL,
+  title_raw       TEXT NOT NULL,
+  title_ar        TEXT,
+  type            TEXT DEFAULT 'film' CHECK (type IN ('film','series','episode')),
+  origin          TEXT DEFAULT 'other',
+  language        TEXT DEFAULT 'ar_dubbed',
+  category        TEXT DEFAULT 'drama',
+  year            INTEGER,
+  duration_sec    INTEGER,
+  poster_url      TEXT,
+  embed_url       TEXT,
+  embeddable      BOOLEAN DEFAULT true,
+  quality_score   INTEGER DEFAULT 0 CHECK (quality_score >= 0 AND quality_score <= 100),
+  score_details   JSONB DEFAULT '{}',
+  status          TEXT DEFAULT 'pending' CHECK (status IN ('pending','approved','pending_review','rejected','duplicate','published')),
+  reject_reason   TEXT,
+  series_title    TEXT,
+  season          INTEGER,
+  episode_num     INTEGER,
+  keyword         TEXT,
+  source_workflow TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  reviewed_at     TIMESTAMPTZ,
+  UNIQUE(platform, platform_id)
+);
+
+-- Self-adjusting keyword discovery queue
+CREATE TABLE IF NOT EXISTS keyword_queue (
+  id             SERIAL PRIMARY KEY,
+  keyword        TEXT NOT NULL UNIQUE,
+  lang           TEXT DEFAULT 'ar',
+  category       TEXT DEFAULT 'drama',
+  priority       INTEGER DEFAULT 5 CHECK (priority BETWEEN 1 AND 10),
+  active         BOOLEAN DEFAULT true,
+  last_run_at    TIMESTAMPTZ,
+  run_count      INTEGER DEFAULT 0,
+  total_found    INTEGER DEFAULT 0,
+  total_imported INTEGER DEFAULT 0,
+  success_rate   NUMERIC(5,2) DEFAULT 0.0,
+  created_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Provider health monitoring
+CREATE TABLE IF NOT EXISTS provider_health (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  enabled         BOOLEAN DEFAULT true,
+  quota_status    TEXT DEFAULT 'ok' CHECK (quota_status IN ('ok','limited','exhausted','error')),
+  last_success_at TIMESTAMPTZ,
+  last_error_at   TIMESTAMPTZ,
+  error_count     INTEGER DEFAULT 0,
+  daily_quota     INTEGER,
+  used_today      INTEGER DEFAULT 0,
+  notes           TEXT,
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Per-run keyword performance log
+CREATE TABLE IF NOT EXISTS keyword_performance (
+  id        SERIAL PRIMARY KEY,
+  keyword   TEXT NOT NULL,
+  platform  TEXT NOT NULL,
+  run_at    TIMESTAMPTZ DEFAULT NOW(),
+  found     INTEGER DEFAULT 0,
+  imported  INTEGER DEFAULT 0,
+  rejected  INTEGER DEFAULT 0,
+  score_avg INTEGER DEFAULT 0
+);
+
+-- Multi-source support (multiple platforms per content item)
+CREATE TABLE IF NOT EXISTS content_sources (
+  id          SERIAL PRIMARY KEY,
+  content_id  TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  platform    TEXT NOT NULL,
+  platform_id TEXT NOT NULL,
+  embed_url   TEXT,
+  quality     TEXT DEFAULT 'hd',
+  is_primary  BOOLEAN DEFAULT false,
+  embeddable  BOOLEAN DEFAULT true,
+  active      BOOLEAN DEFAULT true,
+  added_at    TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(content_id, platform, platform_id)
+);
+
+-- ─────────────────────────────────────────
+-- RLS FOR NEW TABLES
+-- ─────────────────────────────────────────
+
+ALTER TABLE discovery_candidates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE keyword_queue        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE provider_health      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE keyword_performance  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE content_sources      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_actions        ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_all_candidates" ON discovery_candidates;
+DROP POLICY IF EXISTS "service_all_keywords"   ON keyword_queue;
+DROP POLICY IF EXISTS "service_all_phealth"    ON provider_health;
+DROP POLICY IF EXISTS "service_all_kperf"      ON keyword_performance;
+DROP POLICY IF EXISTS "service_all_csources"   ON content_sources;
+DROP POLICY IF EXISTS "public_read_csources"   ON content_sources;
+
+CREATE POLICY "service_all_candidates" ON discovery_candidates TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_keywords"   ON keyword_queue        TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_phealth"    ON provider_health      TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_kperf"      ON keyword_performance  TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_csources"   ON content_sources      TO service_role USING (true) WITH CHECK (true);
+
+-- Public can read active sources for active content
+CREATE POLICY "public_read_csources"
+  ON content_sources FOR SELECT TO anon
+  USING (active = true AND embeddable = true AND EXISTS (
+    SELECT 1 FROM content WHERE content.id = content_sources.content_id AND content.status = 'active'
+  ));
+
+-- ─────────────────────────────────────────
+-- INDEXES FOR NEW TABLES
+-- ─────────────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_candidates_status   ON discovery_candidates(status);
+CREATE INDEX IF NOT EXISTS idx_candidates_platform ON discovery_candidates(platform);
+CREATE INDEX IF NOT EXISTS idx_candidates_created  ON discovery_candidates(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_candidates_score    ON discovery_candidates(quality_score DESC);
+CREATE INDEX IF NOT EXISTS idx_candidates_pid      ON discovery_candidates(platform, platform_id);
+CREATE INDEX IF NOT EXISTS idx_keywords_priority   ON keyword_queue(priority DESC) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_keywords_last_run   ON keyword_queue(last_run_at ASC NULLS FIRST) WHERE active = true;
+CREATE INDEX IF NOT EXISTS idx_phealth_enabled     ON provider_health(enabled);
+CREATE INDEX IF NOT EXISTS idx_kperf_keyword       ON keyword_performance(keyword);
+CREATE INDEX IF NOT EXISTS idx_kperf_run_at        ON keyword_performance(run_at DESC);
+CREATE INDEX IF NOT EXISTS idx_csources_content    ON content_sources(content_id);
+CREATE INDEX IF NOT EXISTS idx_csources_platform   ON content_sources(platform);
+
+-- ─────────────────────────────────────────
+-- SEED: PROVIDER HEALTH
+-- ─────────────────────────────────────────
+
+INSERT INTO provider_health (id, name, enabled, daily_quota, notes) VALUES
+  ('youtube',     'YouTube Data API v3',  true, 10000, 'Primary discovery source'),
+  ('dailymotion', 'Dailymotion API',      true,  null, 'Secondary source, no hard quota'),
+  ('archive',     'Archive.org',          true,  null, 'Public domain films'),
+  ('vimeo',       'Vimeo API',            true,  5000, 'Embeddable public videos only'),
+  ('tmdb',        'TMDB Metadata API',    true,  null, 'Metadata enrichment (poster, rating)'),
+  ('omdb',        'OMDb API',             true,  1000, 'Fallback metadata, 1000/day free'),
+  ('wikidata',    'Wikidata SPARQL',      true,  null, 'Multilingual titles and identifiers')
+ON CONFLICT (id) DO NOTHING;
+
+-- ─────────────────────────────────────────
+-- SEED: KEYWORD QUEUE
+-- ─────────────────────────────────────────
+
+INSERT INTO keyword_queue (keyword, lang, category, priority) VALUES
+  ('مسلسل تركي مدبلج بالعربية',    'ar', 'drama',       9),
+  ('مسلسل هندي مدبلج عربي',        'ar', 'drama',       9),
+  ('فيلم عربي كامل',               'ar', 'drama',       8),
+  ('مسلسل كوري مترجم عربي',        'ar', 'drama',       8),
+  ('مسلسل مغربي دارجة',            'ar', 'drama',       8),
+  ('فيلم مغربي كامل',              'ar', 'drama',       7),
+  ('مسلسل صيني مدبلج عربي',        'ar', 'drama',       7),
+  ('فيلم هندي مدبلج عربي كامل',   'ar', 'action',      7),
+  ('مسلسل تركي رومانسي مدبلج',    'ar', 'romance',     7),
+  ('فيلم تركي كامل مدبلج',         'ar', 'drama',       7),
+  ('أفلام أكشن عربية كاملة',       'ar', 'action',      6),
+  ('مسلسلات رومانسية مدبلجة',      'ar', 'romance',     6),
+  ('مسلسل عائلي مدبلج عربي',       'ar', 'family',      6),
+  ('أفلام كوميدية مغربية',         'ar', 'comedy',      6),
+  ('مسلسل تاريخي عربي كامل',       'ar', 'historical',  6),
+  ('أفلام رعب مدبلجة',             'ar', 'horror',      5),
+  ('مسلسلات خيال علمي مترجمة',    'ar', 'sci-fi',      5),
+  ('أفلام وثائقية عربية',          'ar', 'documentary', 5),
+  ('مسلسل جريمة مدبلج',            'ar', 'crime',       5),
+  ('فيلم أنيميشن مدبلج عربي',      'ar', 'animation',   5),
+  ('مسلسل باكستاني مدبلج',         'ar', 'drama',       4),
+  ('مسلسل إيراني مدبلج عربي',      'ar', 'drama',       5),
+  ('arabic dubbed film full movie', 'en', 'drama',       6),
+  ('turkish series arabic dubbed',  'en', 'drama',       7),
+  ('indian drama arabic dubbing',   'en', 'drama',       6),
+  ('moroccan film darija full',     'en', 'drama',       6),
+  ('korean drama arabic subtitles', 'en', 'drama',       5),
+  ('arabic movie full hd free',     'en', 'drama',       6)
+ON CONFLICT (keyword) DO NOTHING;
