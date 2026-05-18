@@ -75,11 +75,20 @@ export async function getContentById(id) {
   return arr[0] || null;
 }
 
-// ── Search: title_ar + title_orig + description ──────────────
-export async function searchContent(q, { type, limit = 40 } = {}) {
-  const enc = encodeURIComponent(q);
-  let path = `content?status=eq.active&or=(title_ar.ilike.*${enc}*,title_orig.ilike.*${enc}*)&order=view_count.desc&limit=${limit}&select=*`;
-  if (type) path += `&type=eq.${type}`;
+// ── Search: title_ar + title_orig with optional filters ──────
+export async function searchContent(q, { type, origin, language, category, year, limit = 40 } = {}) {
+  let path;
+  if (q && q.trim().length >= 2) {
+    const enc = encodeURIComponent(q.trim());
+    path = `content?status=eq.active&or=(title_ar.ilike.*${enc}*,title_orig.ilike.*${enc}*)&order=view_count.desc&limit=${limit}&select=*`;
+  } else {
+    path = `content?status=eq.active&order=view_count.desc,created_at.desc&limit=${limit}&select=*`;
+  }
+  if (type)     path += `&type=eq.${type}`;
+  if (origin)   path += `&origin=eq.${origin}`;
+  if (language) path += `&language=eq.${language}`;
+  if (category) path += `&category=eq.${category}`;
+  if (year)     path += `&year=eq.${year}`;
   return sbGet(path);
 }
 

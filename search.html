@@ -6,6 +6,27 @@
 <title>بحث — الموسوعة ستريم</title>
 <meta name="description" content="ابحث في آلاف الأفلام والمسلسلات المتاحة على الموسوعة ستريم"/>
 <link rel="stylesheet" href="css/main.css"/>
+<style>
+  .filter-section { padding:0 24px; max-width:1600px; margin:0 auto 24px; }
+  .filter-group { margin-bottom:12px; }
+  .filter-label { font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+  .filter-chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; flex-wrap:nowrap; }
+  .filter-chips::-webkit-scrollbar { display:none; }
+  .filter-chip { flex-shrink:0; padding:6px 16px; border-radius:20px; background:rgba(255,255,255,.06); color:var(--text-dim); font-size:13px; cursor:pointer; border:1px solid rgba(255,255,255,.08); transition:all .2s; white-space:nowrap; user-select:none; }
+  .filter-chip:hover { background:rgba(255,255,255,.1); color:var(--text); }
+  .filter-chip.active { background:var(--accent); color:#000; border-color:var(--accent); font-weight:600; }
+  .filter-year { padding:6px 14px; border-radius:20px; background:rgba(255,255,255,.06); color:var(--text); font-size:13px; border:1px solid rgba(255,255,255,.08); width:90px; outline:none; text-align:center; }
+  .filter-year:focus { border-color:var(--accent); }
+  .filter-divider { height:1px; background:rgba(255,255,255,.06); margin:4px 0 16px; }
+  .search-result-info { padding:0 24px; max-width:1600px; margin:0 auto 16px; font-size:13px; color:var(--text-muted); min-height:20px; }
+  .active-filters { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .active-filter-tag { display:flex; align-items:center; gap:4px; padding:4px 10px; background:rgba(var(--accent-rgb),0.15); border:1px solid rgba(var(--accent-rgb),0.3); border-radius:12px; font-size:12px; color:var(--accent); }
+  .active-filter-tag button { background:none; border:none; color:var(--accent); cursor:pointer; padding:0; font-size:11px; opacity:0.8; }
+  .active-filter-tag button:hover { opacity:1; }
+  .sort-wrap { display:flex; gap:8px; align-items:center; }
+  .sort-select { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); color:var(--text-dim); font-size:12px; padding:5px 10px; border-radius:8px; cursor:pointer; outline:none; }
+  .sort-select:focus { border-color:var(--accent); }
+</style>
 </head>
 <body>
 
@@ -25,7 +46,7 @@
     <button class="search-clear" id="clearBtn" style="display:none" title="مسح">✕</button>
   </div>
   <div class="search-tags" id="searchTags">
-    <span class="search-tag-label">تصفح:</span>
+    <span class="search-tag-label">تصفح سريع:</span>
     <button class="search-tag" onclick="quickSearch('أكشن')">أكشن</button>
     <button class="search-tag" onclick="quickSearch('رومانسي')">رومانسي</button>
     <button class="search-tag" onclick="quickSearch('دراما')">دراما</button>
@@ -33,46 +54,103 @@
     <button class="search-tag" onclick="quickSearch('تركي')">تركي</button>
     <button class="search-tag" onclick="quickSearch('هندي')">هندي</button>
     <button class="search-tag" onclick="quickSearch('مغربي')">مغربي</button>
-    <button class="search-tag" onclick="quickSearch('صيني')">صيني</button>
   </div>
-  <div class="search-info" id="searchInfo"></div>
 </div>
 
-<div class="content-grid" id="results" style="padding-top:8px"></div>
+<!-- FILTERS -->
+<div class="filter-section">
+  <!-- Type -->
+  <div class="filter-group">
+    <div class="filter-label">النوع</div>
+    <div class="filter-chips">
+      <div class="filter-chip active" data-filter="type" data-val="">الكل</div>
+      <div class="filter-chip" data-filter="type" data-val="film">🎬 أفلام</div>
+      <div class="filter-chip" data-filter="type" data-val="series">📺 مسلسلات</div>
+    </div>
+  </div>
+  <!-- Origin -->
+  <div class="filter-group">
+    <div class="filter-label">البلد</div>
+    <div class="filter-chips">
+      <div class="filter-chip active" data-filter="origin" data-val="">الكل</div>
+      <div class="filter-chip" data-filter="origin" data-val="turkish">🇹🇷 تركي</div>
+      <div class="filter-chip" data-filter="origin" data-val="indian">🇮🇳 هندي</div>
+      <div class="filter-chip" data-filter="origin" data-val="korean">🇰🇷 كوري</div>
+      <div class="filter-chip" data-filter="origin" data-val="chinese">🇨🇳 صيني</div>
+      <div class="filter-chip" data-filter="origin" data-val="moroccan">🇲🇦 مغربي</div>
+      <div class="filter-chip" data-filter="origin" data-val="american">🇺🇸 أمريكي</div>
+    </div>
+  </div>
+  <!-- Language -->
+  <div class="filter-group">
+    <div class="filter-label">اللغة</div>
+    <div class="filter-chips">
+      <div class="filter-chip active" data-filter="language" data-val="">الكل</div>
+      <div class="filter-chip" data-filter="language" data-val="ar_dubbed">مدبلج عربي</div>
+      <div class="filter-chip" data-filter="language" data-val="ar">عربي</div>
+      <div class="filter-chip" data-filter="language" data-val="darija">دارجة مغربية</div>
+      <div class="filter-chip" data-filter="language" data-val="fr">فرنسي</div>
+    </div>
+  </div>
+  <!-- Category -->
+  <div class="filter-group">
+    <div class="filter-label">التصنيف</div>
+    <div class="filter-chips">
+      <div class="filter-chip active" data-filter="category" data-val="">الكل</div>
+      <div class="filter-chip" data-filter="category" data-val="drama">دراما</div>
+      <div class="filter-chip" data-filter="category" data-val="action">أكشن</div>
+      <div class="filter-chip" data-filter="category" data-val="romance">رومانسي</div>
+      <div class="filter-chip" data-filter="category" data-val="comedy">كوميدي</div>
+      <div class="filter-chip" data-filter="category" data-val="horror">رعب</div>
+      <div class="filter-chip" data-filter="category" data-val="historical">تاريخي</div>
+      <div class="filter-chip" data-filter="category" data-val="family">عائلي</div>
+      <div class="filter-chip" data-filter="category" data-val="sci-fi">خيال علمي</div>
+    </div>
+  </div>
+  <!-- Year + Sort -->
+  <div class="filter-group" style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <div class="filter-label">السنة</div>
+      <input type="number" id="yearFilter" class="filter-year" placeholder="مثال: 2023" min="1950" max="2026"/>
+    </div>
+    <div>
+      <div class="filter-label">الترتيب</div>
+      <div class="sort-wrap">
+        <select id="sortSelect" class="sort-select">
+          <option value="view_count.desc">الأكثر مشاهدة</option>
+          <option value="created_at.desc">الأحدث إضافةً</option>
+          <option value="year.desc">الأحدث إنتاجاً</option>
+          <option value="quality_score.desc">أعلى تقييماً</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT INFO + ACTIVE FILTERS -->
+<div class="search-result-info">
+  <div id="resultInfo"></div>
+  <div class="active-filters" id="activeFilters"></div>
+</div>
+
+<div class="content-grid" id="results" style="padding-top:0;padding-bottom:40px"></div>
 
 <div id="noResults" style="display:none">
   <div class="empty">
     <div class="empty-icon">🔍</div>
     <div class="empty-h">لا توجد نتائج</div>
-    <div class="empty-p">جرب كلمات مختلفة أو تصفح من <a href="films.html" style="color:var(--accent)">قائمة الأفلام</a></div>
+    <div class="empty-p">جرب تعديل الفلاتر أو <button onclick="resetFilters()" style="background:none;border:none;color:var(--accent);cursor:pointer;padding:0;font-size:inherit">مسح كل الفلاتر</button></div>
   </div>
 </div>
 
 <footer class="footer" style="margin-top:20px">
-  <div class="footer-grid">
-    <div class="footer-col">
-      <div class="footer-logo">الموسوعة <em>ستريم</em></div>
-      <p class="footer-tagline">فهرس أفلام ومسلسلات مجاني</p>
-    </div>
-    <div class="footer-col">
-      <div class="footer-col-title">تصفح</div>
-      <div class="footer-links">
-        <a href="index.html"  class="footer-link">الرئيسية</a>
-        <a href="films.html"  class="footer-link">الأفلام</a>
-        <a href="series.html" class="footer-link">المسلسلات</a>
-      </div>
-    </div>
-    <div class="footer-col">
-      <div class="footer-col-title">قانوني</div>
-      <div class="footer-links">
-        <a href="legal.html"       class="footer-link">سياسة الخصوصية</a>
-        <a href="legal.html#dmca"  class="footer-link">DMCA</a>
-        <a href="legal.html#terms" class="footer-link">شروط الاستخدام</a>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom">
+  <div class="footer-bottom" style="border-top:none;padding-top:0">
     <div class="footer-copy">© 2025 الموسوعة ستريم</div>
+    <div class="footer-legal">
+      <a href="index.html">الرئيسية</a>
+      <a href="films.html">الأفلام</a>
+      <a href="series.html">المسلسلات</a>
+    </div>
   </div>
 </footer>
 
@@ -81,87 +159,190 @@ import { searchContent } from './js/api.js';
 import { gridCardHTML } from './js/utils.js';
 
 const input   = document.getElementById('searchInput');
-const info    = document.getElementById('searchInfo');
 const grid    = document.getElementById('results');
 const noRes   = document.getElementById('noResults');
 const clearBtn = document.getElementById('clearBtn');
-let timer;
+const resultInfo = document.getElementById('resultInfo');
+const activeFilters = document.getElementById('activeFilters');
+const yearInput = document.getElementById('yearFilter');
+const sortSelect = document.getElementById('sortSelect');
+
+// Active filter state
+const filters = { type: '', origin: '', language: '', category: '', year: '' };
+let searchTimer, yearTimer;
+
+// Filter chip click handlers
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const group = chip.dataset.filter;
+    const val   = chip.dataset.val;
+    // Deactivate siblings
+    document.querySelectorAll(`.filter-chip[data-filter="${group}"]`).forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    filters[group] = val;
+    triggerSearch();
+  });
+});
+
+yearInput.addEventListener('input', () => {
+  clearTimeout(yearTimer);
+  yearTimer = setTimeout(() => {
+    const y = yearInput.value.trim();
+    filters.year = (y.length === 4 && +y >= 1950 && +y <= 2026) ? y : '';
+    triggerSearch();
+  }, 500);
+});
+
+sortSelect.addEventListener('change', triggerSearch);
 
 clearBtn.addEventListener('click', () => {
   input.value = '';
   input.focus();
   clearBtn.style.display = 'none';
-  grid.innerHTML = '';
-  info.textContent = '';
-  noRes.style.display = 'none';
+  triggerSearch();
   history.replaceState(null, '', location.pathname);
 });
 
 input.addEventListener('input', () => {
   clearBtn.style.display = input.value ? '' : 'none';
-  clearTimeout(timer);
-  timer = setTimeout(() => doSearch(input.value), 380);
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(triggerSearch, 350);
 });
 
 window.quickSearch = function(q) {
   input.value = q;
   clearBtn.style.display = '';
-  doSearch(q);
+  triggerSearch();
   input.focus();
 };
 
+window.resetFilters = function() {
+  filters.type = ''; filters.origin = ''; filters.language = '';
+  filters.category = ''; filters.year = '';
+  input.value = ''; yearInput.value = '';
+  clearBtn.style.display = 'none';
+  document.querySelectorAll('.filter-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.val === '');
+  });
+  triggerSearch();
+};
+
 function renderSkeleton() {
-  grid.innerHTML = Array.from({length: 12}, () => `
-    <div class="grid-card skel-card">
+  grid.innerHTML = Array.from({length: 16}, () =>
+    `<div class="grid-card skel-card">
       <div class="skel" style="aspect-ratio:2/3;border-radius:var(--radius-sm)"></div>
-      <div class="g-body">
-        <div class="skel skel-line" style="width:80%;height:14px;margin-bottom:8px"></div>
-        <div class="skel skel-line" style="width:50%;height:12px"></div>
-      </div>
+      <div class="g-body"><div class="skel skel-line" style="width:80%;height:14px;margin-bottom:8px"></div><div class="skel skel-line" style="width:50%;height:12px"></div></div>
     </div>`).join('');
   noRes.style.display = 'none';
 }
 
-function renderResults(items, q) {
-  if (!items.length) {
-    grid.innerHTML = '';
-    noRes.style.display = '';
-    info.textContent = `لا نتائج للبحث عن "${q}"`;
-    return;
+function renderActiveFilters() {
+  const LABELS = {
+    type:     { film:'🎬 أفلام', series:'📺 مسلسلات' },
+    origin:   { turkish:'🇹🇷 تركي', indian:'🇮🇳 هندي', korean:'🇰🇷 كوري', chinese:'🇨🇳 صيني', moroccan:'🇲🇦 مغربي', american:'🇺🇸 أمريكي' },
+    language: { ar_dubbed:'مدبلج عربي', ar:'عربي', darija:'دارجة', fr:'فرنسي' },
+    category: { drama:'دراما', action:'أكشن', romance:'رومانسي', comedy:'كوميدي', horror:'رعب', historical:'تاريخي', family:'عائلي', 'sci-fi':'خيال علمي' }
+  };
+  const tags = [];
+  for (const [k, v] of Object.entries(filters)) {
+    if (!v) continue;
+    const label = LABELS[k]?.[v] || v;
+    tags.push(`<div class="active-filter-tag">${label}<button onclick="clearFilter('${k}')">✕</button></div>`);
   }
-  noRes.style.display = 'none';
-  info.textContent = `${items.length} نتيجة للبحث عن "${q}"`;
-  grid.innerHTML = items.map(item => gridCardHTML(item)).join('');
+  if (filters.year) {
+    tags.push(`<div class="active-filter-tag">سنة ${filters.year}<button onclick="clearFilter('year')">✕</button></div>`);
+  }
+  activeFilters.innerHTML = tags.join('');
 }
 
-async function doSearch(q) {
-  const trimmed = q.trim();
-  if (trimmed.length < 2) {
+window.clearFilter = function(key) {
+  filters[key] = '';
+  if (key === 'year') yearInput.value = '';
+  document.querySelectorAll(`.filter-chip[data-filter="${key}"]`).forEach(c => {
+    c.classList.toggle('active', c.dataset.val === '');
+  });
+  triggerSearch();
+};
+
+async function triggerSearch() {
+  const q = input.value.trim();
+  const hasQuery = q.length >= 2;
+  const hasFilter = Object.values(filters).some(Boolean);
+
+  renderActiveFilters();
+  updateURL(q);
+
+  if (!hasQuery && !hasFilter) {
     grid.innerHTML = '';
-    info.textContent = '';
+    resultInfo.textContent = 'ابحث أو اختر فلتراً للبدء';
     noRes.style.display = 'none';
     return;
   }
-  // Update URL without reload
-  history.replaceState(null, '', `?q=${encodeURIComponent(trimmed)}`);
+
   renderSkeleton();
   try {
-    const items = await searchContent(trimmed);
-    renderResults(items, trimmed);
+    const items = await searchContent(hasQuery ? q : '', {
+      type: filters.type || undefined,
+      origin: filters.origin || undefined,
+      language: filters.language || undefined,
+      category: filters.category || undefined,
+      year: filters.year || undefined,
+      limit: 60
+    });
+
+    if (!items.length) {
+      grid.innerHTML = '';
+      noRes.style.display = '';
+      resultInfo.textContent = hasQuery ? `لا نتائج للبحث عن "${q}"` : 'لا توجد نتائج لهذه الفلاتر';
+      return;
+    }
+    noRes.style.display = 'none';
+    const label = hasQuery ? `${items.length} نتيجة للبحث عن "${q}"` : `${items.length} محتوى`;
+    resultInfo.textContent = label;
+    grid.innerHTML = items.map(item => gridCardHTML(item)).join('');
   } catch {
     grid.innerHTML = '';
-    info.textContent = 'تعذر تحميل النتائج';
+    resultInfo.textContent = 'تعذر تحميل النتائج. حاول مجدداً.';
   }
 }
 
-// Pre-fill from URL
-const sp   = new URLSearchParams(location.search);
-const preQ = sp.get('q');
-if (preQ) {
-  input.value = preQ;
-  clearBtn.style.display = '';
-  doSearch(preQ);
+function updateURL(q) {
+  const sp = new URLSearchParams();
+  if (q) sp.set('q', q);
+  if (filters.type) sp.set('type', filters.type);
+  if (filters.origin) sp.set('origin', filters.origin);
+  if (filters.language) sp.set('lang', filters.language);
+  if (filters.category) sp.set('cat', filters.category);
+  if (filters.year) sp.set('year', filters.year);
+  const str = sp.toString();
+  history.replaceState(null, '', str ? `?${str}` : location.pathname);
 }
+
+// Restore state from URL
+(function initFromURL() {
+  const sp = new URLSearchParams(location.search);
+  const q = sp.get('q') || '';
+  if (q) { input.value = q; clearBtn.style.display = ''; }
+
+  const mapParam = (param, filterKey) => {
+    const v = sp.get(param);
+    if (v) {
+      filters[filterKey] = v;
+      document.querySelectorAll(`.filter-chip[data-filter="${filterKey}"]`).forEach(c => {
+        c.classList.toggle('active', c.dataset.val === v);
+      });
+    }
+  };
+  mapParam('type', 'type');
+  mapParam('origin', 'origin');
+  mapParam('lang', 'language');
+  mapParam('cat', 'category');
+  const yr = sp.get('year');
+  if (yr) { filters.year = yr; yearInput.value = yr; }
+
+  if (q || Object.values(filters).some(Boolean)) triggerSearch();
+  else resultInfo.textContent = 'ابحث أو اختر فلتراً للبدء';
+})();
 </script>
 </body>
 </html>

@@ -43,6 +43,10 @@
       <div class="admin-nav-item" onclick="showSection('requests')"><span class="admin-nav-icon">📬</span> الطلبات</div>
       <div class="admin-nav-item" onclick="showSection('import')"><span class="admin-nav-icon">➕</span> إضافة محتوى</div>
       <div class="admin-nav-item" onclick="showSection('logs')"><span class="admin-nav-icon">📋</span> سجل الاستيراد</div>
+      <div style="padding:16px 24px 8px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-top:8px">V2 Pipeline</div>
+      <div class="admin-nav-item" onclick="showSection('candidates')"><span class="admin-nav-icon">🎯</span> المرشحون</div>
+      <div class="admin-nav-item" onclick="showSection('keywords')"><span class="admin-nav-icon">🔑</span> الكلمات المفتاحية</div>
+      <div class="admin-nav-item" onclick="showSection('providers')"><span class="admin-nav-icon">⚡</span> المزودون</div>
     </div>
 
     <!-- Main area -->
@@ -188,6 +192,56 @@
         <div id="logsList"><div style="color:var(--text-dim)">جاري التحميل…</div></div>
       </div>
 
+      <!-- CANDIDATES SECTION -->
+      <div class="admin-section" id="sec-candidates">
+        <div class="admin-title">🎯 المرشحون للنشر</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+          <select id="candStatusF" class="admin-input" style="max-width:160px" onchange="loadCandidates()">
+            <option value="">كل الحالات</option>
+            <option value="pending">⏳ بانتظار التقييم</option>
+            <option value="approved">✅ موافق عليه</option>
+            <option value="pending_review">🔍 مراجعة يدوية</option>
+            <option value="rejected">❌ مرفوض</option>
+            <option value="duplicate">🔄 مكرر</option>
+            <option value="published">🌐 منشور</option>
+          </select>
+          <select id="candPlatF" class="admin-input" style="max-width:160px" onchange="loadCandidates()">
+            <option value="">كل المنصات</option>
+            <option value="youtube">YouTube</option>
+            <option value="dailymotion">Dailymotion</option>
+            <option value="archive">Archive.org</option>
+            <option value="vimeo">Vimeo</option>
+          </select>
+          <button onclick="runScore()" class="btn btn-ghost btn-sm">⚡ تقييم الجديد</button>
+          <button onclick="runPublish()" class="btn btn-primary btn-sm">🚀 نشر الموافق عليه</button>
+        </div>
+        <div id="candidateStats" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px"></div>
+        <div id="candidatesList"></div>
+      </div>
+
+      <!-- KEYWORDS SECTION -->
+      <div class="admin-section" id="sec-keywords">
+        <div class="admin-title">🔑 الكلمات المفتاحية</div>
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+          <input type="text" id="newKeyword" class="admin-input" style="flex:1;min-width:200px" placeholder="كلمة مفتاحية جديدة…"/>
+          <select id="newKwLang" class="admin-input" style="max-width:100px">
+            <option value="ar">عربي</option><option value="en">English</option><option value="fr">Français</option>
+          </select>
+          <select id="newKwCat" class="admin-input" style="max-width:120px">
+            <option value="drama">دراما</option><option value="action">أكشن</option><option value="romance">رومانسي</option>
+          </select>
+          <input type="number" id="newKwPri" class="admin-input" style="max-width:70px" placeholder="أولوية" min="1" max="10" value="5"/>
+          <button onclick="addKeyword()" class="btn btn-primary btn-sm">إضافة</button>
+        </div>
+        <div id="keywordsList"></div>
+      </div>
+
+      <!-- PROVIDERS SECTION -->
+      <div class="admin-section" id="sec-providers">
+        <div class="admin-title">⚡ حالة المزودين</div>
+        <div id="providersList"></div>
+      </div>
+
     </div><!-- /admin-main -->
   </div><!-- /admin-layout -->
 </div><!-- /adminApp -->
@@ -252,11 +306,14 @@ function showSection(name) {
   document.querySelectorAll('.admin-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + name).classList.add('active');
   event.currentTarget.classList.add('active');
-  if (name === 'content') loadContent();
-  if (name === 'pending') loadPending();
-  if (name === 'dead')    loadDeadLinks();
-  if (name === 'requests') loadRequests();
-  if (name === 'logs')    loadLogs();
+  if (name === 'content')    loadContent();
+  if (name === 'pending')    loadPending();
+  if (name === 'dead')       loadDeadLinks();
+  if (name === 'requests')   loadRequests();
+  if (name === 'logs')       loadLogs();
+  if (name === 'candidates') loadCandidates();
+  if (name === 'keywords')   loadKeywords();
+  if (name === 'providers')  loadProviders();
 }
 
 /* ── Stats ── */
@@ -491,6 +548,151 @@ async function apiCall(endpoint, method, body) {
     method, headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   }).then(r=>r.json());
+}
+
+/* ── Candidates ── */
+async function loadCandidates() {
+  const status   = document.getElementById('candStatusF').value;
+  const platform = document.getElementById('candPlatF').value;
+  const params = { limit: 30 };
+  if (status)   params.status = status;
+  if (platform) params.platform = platform;
+
+  // Load stats
+  const statsRes = await fetch('/api/publish?action=stats', {
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  if (statsRes.stats) {
+    const labels = { pending:'⏳ انتظار', approved:'✅ موافق', pending_review:'🔍 مراجعة', rejected:'❌ مرفوض', duplicate:'🔄 مكرر', published:'🌐 منشور' };
+    document.getElementById('candidateStats').innerHTML = Object.entries(statsRes.stats)
+      .map(([k,v]) => `<div style="padding:8px 16px;background:var(--card);border-radius:8px;font-size:13px"><span style="font-weight:700">${v}</span> <span style="color:var(--text-muted)">${labels[k]||k}</span></div>`)
+      .join('');
+  }
+
+  const { items = [] } = await moderateGet('list-candidates', params);
+  if (!items.length) {
+    document.getElementById('candidatesList').innerHTML = '<div style="color:var(--text-dim);padding:24px 0">لا يوجد محتوى بهذه الحالة</div>';
+    return;
+  }
+  document.getElementById('candidatesList').innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>العنوان</th><th>المنصة</th><th>النوع</th><th>التقييم</th><th>الحالة</th><th>الإجراء</th></tr></thead>
+      <tbody>${items.map(c => `<tr>
+        <td style="max-width:220px"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.title_ar||c.title_raw)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(c.platform_id)}</div></td>
+        <td style="font-size:12px">${esc(c.platform)}</td>
+        <td><span class="badge ${c.type==='film'?'b-film':'b-ser'}">${c.type==='film'?'فيلم':'مسلسل'}</span></td>
+        <td><span style="font-size:16px;font-weight:800;color:${c.quality_score>=85?'#4ade80':c.quality_score>=60?'#facc15':'#f87171'}">${c.quality_score||0}</span></td>
+        <td><span class="badge ${c.status==='approved'?'b-complete':c.status==='rejected'?'b-dead':'b-year'}">${esc(c.status)}</span></td>
+        <td style="display:flex;gap:6px">
+          ${c.status!=='approved'&&c.status!=='published'?`<button onclick="approveCandidate('${esc(c.id)}')" class="btn btn-primary btn-xs">قبول</button>`:''}
+          ${c.status!=='rejected'&&c.status!=='published'?`<button onclick="rejectCandidate('${esc(c.id)}')" class="btn btn-danger btn-xs">رفض</button>`:''}
+        </td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function approveCandidate(id) {
+  await moderate('approve-candidate', { id });
+  loadCandidates();
+}
+async function rejectCandidate(id) {
+  await moderate('reject-candidate', { id, reason: 'manual_reject' });
+  loadCandidates();
+}
+async function runScore() {
+  const r = await fetch('/api/publish?action=score', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: 200 })
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  alert(r.ok ? `✅ تقييم: ${r.processed} معالج، ${r.scored} مقيّم، ${r.rejected} مرفوض` : '❌ خطأ');
+  loadCandidates();
+}
+async function runPublish() {
+  const r = await fetch('/api/publish?action=publish', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: 50 })
+  }).then(r=>r.json()).catch(()=>({ok:false}));
+  alert(r.ok ? `✅ نشر: ${r.published} منشور، ${r.skipped} تخطي` : '❌ خطأ في النشر');
+  loadCandidates();
+}
+
+/* ── Keywords ── */
+async function loadKeywords() {
+  const { items = [] } = await moderateGet('list-keywords');
+  if (!items.length) {
+    document.getElementById('keywordsList').innerHTML = '<div style="color:var(--text-dim)">لا توجد كلمات مفتاحية</div>';
+    return;
+  }
+  document.getElementById('keywordsList').innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>الكلمة</th><th>اللغة</th><th>التصنيف</th><th>الأولوية</th><th>نسبة النجاح</th><th>الحالة</th><th>الإجراء</th></tr></thead>
+      <tbody>${items.map(k=>`<tr>
+        <td style="font-size:13px;font-weight:600;max-width:200px">${esc(k.keyword)}</td>
+        <td style="font-size:12px">${esc(k.lang)}</td>
+        <td style="font-size:12px">${esc(k.category)}</td>
+        <td><span style="font-size:16px;font-weight:800;color:${k.priority>=8?'#4ade80':k.priority>=5?'#facc15':'#f87171'}">${k.priority}</span>/10</td>
+        <td style="font-size:12px">${k.success_rate||0}%</td>
+        <td><span class="badge ${k.active?'b-complete':'b-dead'}">${k.active?'نشط':'متوقف'}</span></td>
+        <td style="display:flex;gap:6px">
+          <button onclick="toggleKeyword(${k.id},${!k.active})" class="btn btn-ghost btn-xs">${k.active?'إيقاف':'تفعيل'}</button>
+        </td>
+      </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function addKeyword() {
+  const kw  = document.getElementById('newKeyword').value.trim();
+  const lang = document.getElementById('newKwLang').value;
+  const cat  = document.getElementById('newKwCat').value;
+  const pri  = document.getElementById('newKwPri').value;
+  if (!kw) return;
+  await moderate('add-keyword', { keyword: kw, lang, category: cat, priority: +pri });
+  document.getElementById('newKeyword').value = '';
+  loadKeywords();
+}
+async function toggleKeyword(id, active) {
+  await moderate('update-keyword', { id, active });
+  loadKeywords();
+}
+
+/* ── Providers ── */
+async function loadProviders() {
+  const { items = [] } = await moderateGet('list-providers');
+  const ICONS = { youtube:'📹', dailymotion:'🎬', archive:'🏛️', vimeo:'🎥', tmdb:'🎭', omdb:'📽️', wikidata:'🌐' };
+  const STATUS_COLOR = { ok:'#4ade80', limited:'#facc15', exhausted:'#f87171', error:'#f87171' };
+  document.getElementById('providersList').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      ${items.map(p => `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:16px;font-weight:700">${ICONS[p.id]||'📡'} ${esc(p.name)}</div>
+            <span class="badge" style="background:rgba(${p.quota_status==='ok'?'74,222,128':'248,113,113'},.15);color:${STATUS_COLOR[p.quota_status]||'#fff'}">
+              ${esc(p.quota_status)}
+            </span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${p.notes ? esc(p.notes) : ''}</div>
+          ${p.daily_quota ? `<div style="font-size:12px;color:var(--text-dim)">Quota: <b>${p.used_today||0}</b>/${p.daily_quota}/يوم</div>` : ''}
+          ${p.last_success_at ? `<div style="font-size:11px;color:var(--text-muted)">آخر نجاح: ${new Date(p.last_success_at).toLocaleString('ar')}</div>` : ''}
+          ${p.last_error_at   ? `<div style="font-size:11px;color:#f87171">آخر خطأ: ${new Date(p.last_error_at).toLocaleString('ar')}</div>` : ''}
+          <div style="display:flex;gap:6px;margin-top:12px">
+            <button onclick="toggleProvider('${esc(p.id)}',${!p.enabled})" class="btn btn-ghost btn-xs">${p.enabled?'تعطيل':'تفعيل'}</button>
+            <button onclick="resetProviderErrors('${esc(p.id)}')" class="btn btn-ghost btn-xs">مسح الأخطاء</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function toggleProvider(id, enabled) {
+  await moderate('update-provider', { id, enabled });
+  loadProviders();
+}
+async function resetProviderErrors(id) {
+  await moderate('update-provider', { id, quota_status: 'ok', notes: '' });
+  loadProviders();
 }
 
 /* ── Debounce ── */
