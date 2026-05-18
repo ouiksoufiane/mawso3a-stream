@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_KEY;
   if (!SUPABASE_SERVICE) return res.status(500).json({ error: 'Config error' });
 
-  const { contentId, ytId } = req.body || {};
+  const { contentId, ytId, sourceId } = req.body || {};
   if (!contentId && !ytId) return res.status(400).json({ error: 'contentId or ytId required' });
 
   const rpcRes = await fetch(`${SB_URL}/rpc/report_dead_link`, {
@@ -20,7 +20,11 @@ export default async function handler(req, res) {
       'Authorization': `Bearer ${SUPABASE_SERVICE}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ p_content_id: contentId || null, p_yt_id: ytId || null })
+    body: JSON.stringify({
+      p_content_id: contentId || null,
+      p_yt_id: ytId || null,
+      p_source_id: sourceId ? parseInt(sourceId) : null
+    })
   });
 
   if (!rpcRes.ok) {

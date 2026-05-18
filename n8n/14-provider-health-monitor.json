@@ -13,7 +13,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Define health checks for each provider\nreturn [\n  { id: 'youtube',    name: 'YouTube',    url: `https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${process.env.YT_API_KEY}` },\n  { id: 'dailymotion',name: 'DM',         url: 'https://api.dailymotion.com/video/x7tgd2g?fields=id,title' },\n  { id: 'archive',    name: 'Archive.org', url: 'https://archive.org/advancedsearch.php?q=mediatype:movies&output=json&rows=1' },\n  { id: 'tmdb',       name: 'TMDB',       url: `https://api.themoviedb.org/3/configuration?api_key=${process.env.TMDB_API_KEY}` }\n].map(p => ({ json: p }));"
+        "jsCode": "// Define health checks for each provider\nreturn [\n  { id: 'youtube',    name: 'YouTube',    url: `https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${process.env.YOUTUBE_API_KEY}` },\n  { id: 'dailymotion',name: 'DM',         url: 'https://api.dailymotion.com/video/x7tgd2g?fields=id,title' },\n  { id: 'archive',    name: 'Archive.org', url: 'https://archive.org/advancedsearch.php?q=mediatype:movies&output=json&rows=1' },\n  { id: 'tmdb',       name: 'TMDB',       url: `https://api.themoviedb.org/3/configuration?api_key=${process.env.TMDB_API_KEY}` }\n].map(p => ({ json: p }));"
       },
       "id": "ph-checks",
       "name": "Build Checks",

@@ -147,6 +147,40 @@ export function filmHref(item)   { return `film-detail.html?id=${encodeURICompon
 export function seriesHref(item) { return `series-detail.html?id=${encodeURIComponent(item.id)}`; }
 export function itemHref(item)   { return item.type === 'film' ? filmHref(item) : seriesHref(item); }
 
+/* ── EMBED URL FROM CONTENT_SOURCES ROW ──────────────────── */
+export function getEmbedUrl(source, autoplay = false) {
+  if (!source) return null;
+  const ap = autoplay ? 1 : 0;
+  switch (source.platform) {
+    case 'youtube':
+      return `https://www.youtube.com/embed/${source.platform_id}?autoplay=${ap}&rel=0&modestbranding=1&playsinline=1`;
+    case 'dailymotion':
+      return `https://www.dailymotion.com/embed/video/${source.platform_id}?autoplay=${ap}`;
+    case 'vimeo':
+      return `https://player.vimeo.com/video/${source.platform_id}?autoplay=${ap}`;
+    case 'archive':
+      return `https://archive.org/embed/${source.platform_id}${autoplay ? '?autoplay=1' : ''}`;
+    default:
+      return source.embed_url || null;
+  }
+}
+
+/* ── EMBED URL FALLBACK (from yt_id field, legacy) ──────── */
+export function embedUrlFromYtId(ytId, autoplay = false) {
+  if (!ytId) return null;
+  const ap = autoplay ? 1 : 0;
+  if (ytId.startsWith('arc_')) {
+    return `https://archive.org/embed/${ytId.slice(4)}${autoplay ? '?autoplay=1' : ''}`;
+  }
+  return `https://www.youtube.com/embed/${ytId}?autoplay=${ap}&rel=0&modestbranding=1&playsinline=1`;
+}
+
+/* ── PLATFORM LABEL ──────────────────────────────────────── */
+export function platformLabel(platform) {
+  const MAP = { youtube: '▶ YouTube', dailymotion: '▶ Dailymotion', vimeo: '▶ Vimeo', archive: '▶ Archive.org' };
+  return MAP[platform] || platform;
+}
+
 /* ── CARD HTML (row/slider) ──────────────────────────────── */
 export function cardHTML(item) {
   const href  = itemHref(item);

@@ -240,8 +240,8 @@
 </footer>
 
 <script type="module">
-import { getContentById, getContent, incrementView, reportDeadLink } from './js/api.js';
-import { originBadge, langBadge, catBadge, CW, FAV, toast, formatDuration, esc, cardHTML } from './js/utils.js';
+import { getContentById, getContent, incrementView, reportDeadLink, getContentSources } from './js/api.js';
+import { originBadge, langBadge, catBadge, CW, FAV, toast, formatDuration, esc, cardHTML, getEmbedUrl, embedUrlFromYtId, platformLabel } from './js/utils.js';
 
 window.scrollRow = (id, dir) => { const el = document.getElementById(id); if (el) el.scrollBy({ left: dir * 480, behavior: 'smooth' }); };
 
@@ -251,26 +251,44 @@ const filmId = sp.get('id');
 if (!filmId) location.href = 'films.html';
 
 let FILM = null;
+let FILM_SOURCES = [];
 
-function embedSrc(ytId) {
-  return ytId.startsWith('arc_')
-    ? `https://archive.org/embed/${ytId.slice(4)}?autoplay=1`
-    : `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+function buildIframeSrc(source, ytId) {
+  if (source) return getEmbedUrl(source, true);
+  return embedUrlFromYtId(ytId, true);
 }
 
-window.__playInline = function() {
-  if (!FILM?.yt_id) return;
+window.__playInline = function(sourceId) {
+  if (!FILM) return;
+  const source = sourceId
+    ? FILM_SOURCES.find(s => s.id === sourceId)
+    : (FILM_SOURCES.find(s => s.is_primary && s.is_working !== false) || FILM_SOURCES[0]);
+  const src = buildIframeSrc(source || null, FILM.yt_id);
+  if (!src) return;
+
   const col = document.querySelector('.film-poster-col');
   col.innerHTML = `<div class="film-player-inline">
-    <iframe src="${embedSrc(esc(FILM.yt_id))}"
+    <iframe src="${src}"
       allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" loading="eager"></iframe>
   </div>`;
+
+  // Source selector below player
+  if (FILM_SOURCES.length > 1) {
+    const btns = FILM_SOURCES.map(s =>
+      `<button class="btn btn-ghost btn-sm ${s.id === (source?.id) ? 'on' : ''}"
+        onclick="window.__playInline(${s.id})" style="font-size:12px">
+        ${platformLabel(s.platform)}
+      </button>`).join('');
+    col.insertAdjacentHTML('afterend',
+      `<div id="srcSelector" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;justify-content:center">${btns}</div>`);
+  }
+
   CW.save({ id: FILM.id, title: FILM.title_ar, href: `film-detail.html?id=${FILM.id}`, type:'film', progress: 5 });
   incrementView(FILM.id);
 };
 
-window.__report = async function(id, ytId) {
-  await reportDeadLink(id, ytId);
+window.__report = async function(id, ytId, sourceId) {
+  await reportDeadLink(id, ytId, sourceId || null);
   toast('تم الإبلاغ. شكراً! ✅', 'success');
 };
 
@@ -301,9 +319,13 @@ function injectLD(film) {
 }
 
 async function load() {
-  const film = await getContentById(filmId);
+  const [film, sources] = await Promise.all([
+    getContentById(filmId),
+    getContentSources(filmId)
+  ]);
   if (!film || film.type !== 'film') { location.href = 'films.html'; return; }
   FILM = film;
+  FILM_SOURCES = sources;
 
   // Meta & SEO
   const pageUrl = `${BASE}/film-detail.html?id=${encodeURIComponent(film.id)}`;
@@ -353,6 +375,8 @@ async function load() {
 
   // Actions
   const favOn = FAV.is(film.id);
+  const primarySrc = sources.find(s => s.is_primary && s.is_working !== false) || sources[0];
+  const srcIdArg = primarySrc ? primarySrc.id : 'null';
   document.getElementById('filmActions').innerHTML = `
     <button class="btn-watch" onclick="window.__playInline()">
       <span class="btn-watch-icon">▶</span> مشاهدة الآن
@@ -360,7 +384,7 @@ async function load() {
     <button class="btn btn-ghost btn-sm" id="favBtn" onclick="window.__toggleFavMain('${esc(film.id)}')">
       ${favOn ? '❤️ في المفضلة' : '🤍 إضافة للمفضلة'}
     </button>
-    <button class="report-btn" onclick="window.__report('${esc(film.id)}','${esc(film.yt_id)}')">⚠️ إبلاغ</button>
+    <button class="report-btn" onclick="window.__report('${esc(film.id)}','${esc(film.yt_id)}',${srcIdArg})">⚠️ إبلاغ</button>
   `;
 
   // Related films

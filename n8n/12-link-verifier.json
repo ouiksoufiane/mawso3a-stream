@@ -14,55 +14,91 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://mawso3a-stream.vercel.app/api/admin/moderate?action=list-content&status=active&limit=50",
+        "url": "https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content_sources?active=eq.true&embeddable=eq.true&order=last_checked_at.asc.nullsfirst&limit=40&select=id,content_id,episode_id,platform,platform_id",
         "options": { "timeout": 20000 },
         "headers": {
-          "parameters": [{ "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" }]
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_KEY }}" }
+          ]
         }
       },
-      "id": "lv-fetch",
-      "name": "Fetch Active Content",
+      "id": "lv-fetch-sources",
+      "name": "Fetch Sources to Check",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [460, 300]
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst items = (data.items || []).filter(i => i.yt_id && !i.yt_id.startsWith('arc_'));\n// Only check YouTube items (Archive.org has stable links)\nreturn items.slice(0, 20).map(i => ({ json: { id: i.id, yt_id: i.yt_id } }));"
+        "jsCode": "const sources = $input.first().json;\nif (!Array.isArray(sources) || !sources.length) {\n  console.log('[LinkVerifier] No sources to check');\n  return [];\n}\nreturn sources.map(s => ({ json: s }));"
       },
-      "id": "lv-filter",
-      "name": "Filter YT Items",
+      "id": "lv-split",
+      "name": "Split Sources",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=https://www.googleapis.com/youtube/v3/videos?part=status&id={{ $json.yt_id }}&key={{ $env.YT_API_KEY }}",
-        "options": { "timeout": 10000 }
+        "method": "POST",
+        "url": "https://mawso3a-stream.vercel.app/api/verify-source",
+        "options": { "timeout": 15000 },
+        "headers": {
+          "parameters": [
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.N8N_SECRET }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { platform: $json.platform, platform_id: $json.platform_id } }}"
+        }
       },
-      "id": "lv-check",
-      "name": "Check YT Status",
+      "id": "lv-verify",
+      "name": "Verify Source",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "const ytData = $input.first().json;\nconst item = $('Filter YT Items').item.json;\n\nconst videos = ytData?.items || [];\nconst isDead = videos.length === 0 || videos[0]?.status?.embeddable === false;\n\nif (isDead) {\n  console.warn(`[LinkVerifier] DEAD: ${item.yt_id} (content: ${item.id})`);\n}\n\nreturn [{ json: { id: item.id, yt_id: item.yt_id, dead: isDead } }];"
+        "jsCode": "const result = $input.first().json;\nconst source = $('Split Sources').item.json;\n\nconst isWorking = result.ok === true && result.embeddable === true;\nconsole.log(`[LinkVerifier] ${source.platform}:${source.platform_id} → working=${isWorking} reason=${result.reason || 'none'}`);\n\nreturn [{ json: { \n  source_id: source.id,\n  content_id: source.content_id,\n  is_working: isWorking,\n  reason: result.reason || null\n} }];"
       },
       "id": "lv-assess",
-      "name": "Assess Link",
+      "name": "Assess Source",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1120, 300]
     },
     {
       "parameters": {
+        "method": "PATCH",
+        "url": "=https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content_sources?id=eq.{{ $json.source_id }}",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Content-Type",  "value": "application/json" }
+          ]
+        },
+        "body": {
+          "mode": "json",
+          "json": "={{ { is_working: $json.is_working, last_checked_at: new Date().toISOString() } }}"
+        }
+      },
+      "id": "lv-update-source",
+      "name": "Update Source Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {},
-          "conditions": [{ "id": "dead-check", "leftValue": "={{ $json.dead }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "conditions": [{ "id": "dead-check", "leftValue": "={{ $('Assess Source').item.json.is_working }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
           "combinator": "and"
         }
       },
@@ -70,7 +106,59 @@
       "name": "Is Dead?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contentId = $('Assess Source').item.json.content_id;\nreturn [{ json: { content_id: contentId } }];"
+      },
+      "id": "lv-check-remaining",
+      "name": "Prep Content Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://wadazxpofizrfoczhmkn.supabase.co/rest/v1/content_sources?content_id=eq.{{ $json.content_id }}&active=eq.true&is_working=eq.true&limit=1&select=id",
+        "options": { "timeout": 10000 },
+        "headers": {
+          "parameters": [
+            { "name": "apikey",        "value": "={{ $env.SUPABASE_SERVICE_KEY }}" },
+            { "name": "Authorization", "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_KEY }}" }
+          ]
+        }
+      },
+      "id": "lv-check-working",
+      "name": "Count Working Sources",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const resp = $input.first().json;\nconst contentId = $('Prep Content Check').item.json.content_id;\nconst workingCount = Array.isArray(resp) ? resp.length : 0;\nconsole.log(`[LinkVerifier] content ${contentId} has ${workingCount} working sources`);\nreturn [{ json: { content_id: contentId, has_working: workingCount > 0 } }];"
+      },
+      "id": "lv-eval-remaining",
+      "name": "Eval Remaining",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {},
+          "conditions": [{ "id": "no-sources", "leftValue": "={{ $json.has_working }}", "rightValue": false, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "lv-no-working",
+      "name": "No Working Sources?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2440, 200]
     },
     {
       "parameters": {
@@ -85,24 +173,29 @@
         },
         "body": {
           "mode": "json",
-          "json": "={{ { id: $json.id } }}"
+          "json": "={{ { id: $json.content_id } }}"
         }
       },
       "id": "lv-hide",
-      "name": "Hide Dead Content",
+      "name": "Hide Content",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1560, 200]
+      "position": [2660, 100]
     }
   ],
   "connections": {
-    "Every Week":         { "main": [[{ "node": "Fetch Active Content", "type": "main", "index": 0 }]] },
-    "Fetch Active Content":{ "main": [[{ "node": "Filter YT Items",     "type": "main", "index": 0 }]] },
-    "Filter YT Items":    { "main": [[{ "node": "Check YT Status",      "type": "main", "index": 0 }]] },
-    "Check YT Status":    { "main": [[{ "node": "Assess Link",           "type": "main", "index": 0 }]] },
-    "Assess Link":        { "main": [[{ "node": "Is Dead?",              "type": "main", "index": 0 }]] },
-    "Is Dead?":           { "main": [[{ "node": "Hide Dead Content",     "type": "main", "index": 0 }], []] }
+    "Every Week":            { "main": [[{ "node": "Fetch Sources to Check", "type": "main", "index": 0 }]] },
+    "Fetch Sources to Check":{ "main": [[{ "node": "Split Sources",          "type": "main", "index": 0 }]] },
+    "Split Sources":         { "main": [[{ "node": "Verify Source",          "type": "main", "index": 0 }]] },
+    "Verify Source":         { "main": [[{ "node": "Assess Source",          "type": "main", "index": 0 }]] },
+    "Assess Source":         { "main": [[{ "node": "Update Source Status",   "type": "main", "index": 0 }]] },
+    "Update Source Status":  { "main": [[{ "node": "Is Dead?",               "type": "main", "index": 0 }]] },
+    "Is Dead?":              { "main": [[{ "node": "Prep Content Check",      "type": "main", "index": 0 }], []] },
+    "Prep Content Check":    { "main": [[{ "node": "Count Working Sources",   "type": "main", "index": 0 }]] },
+    "Count Working Sources": { "main": [[{ "node": "Eval Remaining",          "type": "main", "index": 0 }]] },
+    "Eval Remaining":        { "main": [[{ "node": "No Working Sources?",     "type": "main", "index": 0 }]] },
+    "No Working Sources?":   { "main": [[{ "node": "Hide Content",            "type": "main", "index": 0 }], []] }
   },
   "settings": { "executionOrder": "v1" },
-  "tags": ["maintenance","links"]
+  "tags": ["maintenance","links","multi-source"]
 }

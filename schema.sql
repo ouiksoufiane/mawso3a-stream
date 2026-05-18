@@ -747,3 +747,134 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE INDEX IF NOT EXISTS idx_csources_episode   ON content_sources(episode_id);
 CREATE INDEX IF NOT EXISTS idx_csources_working   ON content_sources(is_working) WHERE active = true;
 CREATE INDEX IF NOT EXISTS idx_csources_checked   ON content_sources(last_checked_at);
+
+-- ─────────────────────────────────────────
+-- ARCHITECTURE V3 — SEASONS + MULTI-SOURCE
+-- ─────────────────────────────────────────
+
+-- Seasons: group episodes by season within a series
+CREATE TABLE IF NOT EXISTS seasons (
+  id             TEXT PRIMARY KEY,
+  content_id     TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+  season_number  INTEGER NOT NULL DEFAULT 1,
+  title          TEXT,
+  poster_url     TEXT,
+  episode_count  INTEGER DEFAULT 0,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(content_id, season_number)
+);
+
+ALTER TABLE seasons ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "service_all_seasons" ON seasons;
+DROP POLICY IF EXISTS "public_read_seasons"  ON seasons;
+
+CREATE POLICY "service_all_seasons" ON seasons TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "public_read_seasons"
+  ON seasons FOR SELECT TO anon
+  USING (EXISTS (
+    SELECT 1 FROM content
+    WHERE content.id = seasons.content_id AND content.status = 'active'
+  ));
+
+CREATE INDEX IF NOT EXISTS idx_seasons_content ON seasons(content_id);
+
+-- Trigger to auto-update seasons.updated_at
+DROP TRIGGER IF EXISTS trg_seasons_updated ON seasons;
+CREATE TRIGGER trg_seasons_updated
+  BEFORE UPDATE ON seasons
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Add source_id to dead_links (link report to a specific source)
+ALTER TABLE dead_links ADD COLUMN IF NOT EXISTS source_id INTEGER REFERENCES content_sources(id) ON DELETE SET NULL;
+
+-- Fix publish_candidate: also insert content_sources row
+CREATE OR REPLACE FUNCTION publish_candidate(p_candidate_id TEXT)
+RETURNS TEXT AS $$
+DECLARE
+  c            discovery_candidates%ROWTYPE;
+  v_content_id TEXT;
+  v_ytid       TEXT;
+  v_status     TEXT;
+  v_embed_url  TEXT;
+BEGIN
+  SELECT * INTO c FROM discovery_candidates WHERE id = p_candidate_id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Candidate % not found', p_candidate_id; END IF;
+  IF c.status NOT IN ('approved', 'pending_review') THEN
+    RAISE EXCEPTION 'Candidate status is %, must be approved or pending_review', c.status;
+  END IF;
+
+  -- Skip episodes (handled by publish.js server-side which guarantees parent)
+  IF c.type = 'episode' THEN
+    RAISE EXCEPTION 'Episodes must be published via publish.js, not publish_candidate()';
+  END IF;
+
+  v_content_id := c.platform || '_' || c.platform_id;
+  v_ytid := CASE WHEN c.platform = 'archive' THEN 'arc_' || c.platform_id ELSE c.platform_id END;
+  v_status := CASE WHEN c.quality_score >= 85 THEN 'active' ELSE 'pending' END;
+
+  v_embed_url := CASE c.platform
+    WHEN 'youtube'     THEN 'https://www.youtube.com/embed/' || c.platform_id || '?rel=0&modestbranding=1'
+    WHEN 'dailymotion' THEN 'https://www.dailymotion.com/embed/video/' || c.platform_id
+    WHEN 'vimeo'       THEN 'https://player.vimeo.com/video/' || c.platform_id
+    WHEN 'archive'     THEN 'https://archive.org/embed/' || c.platform_id
+    ELSE c.embed_url
+  END;
+
+  -- Insert content (idempotent)
+  INSERT INTO content (
+    id, type, title_ar, language, origin, category,
+    poster_url, yt_id, year, duration_sec, embeddable,
+    quality_score, primary_platform, status, source_count
+  ) VALUES (
+    v_content_id, c.type, COALESCE(c.title_ar, c.title_raw), c.language, c.origin, c.category,
+    c.poster_url, v_ytid, c.year, c.duration_sec, true,
+    c.quality_score, c.platform, v_status, 1
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Insert primary source
+  INSERT INTO content_sources (content_id, platform, platform_id, embed_url, source_url, is_primary, embeddable, is_working, last_checked_at)
+  VALUES (v_content_id, c.platform, c.platform_id, v_embed_url, c.embed_url, true, true, true, NOW())
+  ON CONFLICT (content_id, platform, platform_id) DO NOTHING;
+
+  UPDATE discovery_candidates SET status = 'published' WHERE id = p_candidate_id;
+  RETURN v_content_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Update report_dead_link to accept optional source_id
+CREATE OR REPLACE FUNCTION report_dead_link(p_content_id TEXT, p_yt_id TEXT, p_source_id INTEGER DEFAULT NULL)
+RETURNS INTEGER AS $$
+DECLARE v_reports INTEGER;
+BEGIN
+  INSERT INTO dead_links (content_id, yt_id, source_id, reports)
+  VALUES (p_content_id, p_yt_id, p_source_id, 1)
+  ON CONFLICT (content_id, yt_id) DO UPDATE
+    SET reports = dead_links.reports + 1,
+        source_id = COALESCE(p_source_id, dead_links.source_id);
+
+  SELECT reports INTO v_reports
+  FROM dead_links
+  WHERE content_id = p_content_id AND yt_id IS NOT DISTINCT FROM p_yt_id;
+
+  -- Mark source as not working if source_id provided
+  IF p_source_id IS NOT NULL AND v_reports >= 2 THEN
+    UPDATE content_sources SET is_working = false, last_checked_at = NOW()
+    WHERE id = p_source_id;
+  END IF;
+
+  -- Auto-hide content after 3+ reports (only if no working sources remain)
+  IF v_reports >= 3 AND p_content_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM content_sources
+      WHERE content_id = p_content_id AND is_working = true AND active = true
+    ) THEN
+      UPDATE content SET status = 'hidden' WHERE id = p_content_id;
+    END IF;
+  END IF;
+
+  RETURN v_reports;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

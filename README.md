@@ -47,12 +47,13 @@ mawso3a-stream/
 │   ├── candidates.js          # Endpoint staging pipeline (submit/log/update-keyword)
 │   ├── publish.js             # Scorer + publisher candidates → content
 │   ├── status.js              # Health check
-│   ├── report-dead-link.js    # Rapport lien mort (public)
+│   ├── report-dead-link.js    # Rapport lien mort (public, supporte source_id)
 │   ├── request-content.js     # Demande de contenu (public)
 │   ├── refresh-metadata.js    # Enrichissement TMDB/OMDb
+│   ├── verify-source.js       # Vérification source (YouTube/DM/Vimeo/Archive) — Bearer N8N_SECRET
 │   ├── sitemap.js             # Sitemap XML dynamique
 │   └── admin/
-│       └── moderate.js        # Dashboard admin (Bearer N8N_SECRET)
+│       └── moderate.js        # Dashboard admin (Bearer ADMIN_TOKEN ou N8N_SECRET)
 │
 ├── js/
 │   ├── api.js                 # Client Supabase (anon, read-only)
@@ -109,15 +110,17 @@ mawso3a-stream/
 | Variable | Obligatoire | Description |
 |----------|-------------|-------------|
 | `SUPABASE_SERVICE_KEY` | ✅ | Clé service Supabase (server-side uniquement) |
-| `N8N_SECRET` | ✅ | Token Bearer pour tous les appels n8n → /api/* |
-| `YOUTUBE_API_KEY` | ✅ | YouTube Data API v3 |
+| `N8N_SECRET` | ✅ | Token Bearer pour les appels n8n → /api/* |
+| `ADMIN_TOKEN` | ✅ | Token séparé pour /api/admin/moderate — différent de N8N_SECRET |
+| `YOUTUBE_API_KEY` | ✅ | YouTube Data API v3 (nom exact — pas YT_API_KEY) |
 | `TMDB_API_KEY` | Optionnel | Enrichissement métadonnées (posters, synopsis) |
 | `OMDB_API_KEY` | Optionnel | Métadonnées fallback (1000/jour gratuit) |
-| `VIMEO_ACCESS_TOKEN` | Optionnel | Discovery Vimeo |
+| `VIMEO_ACCESS_TOKEN` | Optionnel | Discovery + vérification Vimeo |
 | `DAILYMOTION_API_KEY` | Optionnel | Discovery Dailymotion |
 | `DAILYMOTION_SECRET` | Optionnel | Auth Dailymotion |
 
-Les mêmes variables (`N8N_SECRET`, `YOUTUBE_API_KEY`, etc.) doivent aussi être configurées dans **n8n → Settings → Variables**.
+Les variables `N8N_SECRET`, `SUPABASE_SERVICE_KEY`, `YOUTUBE_API_KEY` doivent aussi être configurées dans **n8n → Settings → Variables**.  
+⚠️ `ADMIN_TOKEN` est uniquement dans Vercel — ne pas le mettre dans n8n.
 
 ---
 
@@ -128,12 +131,13 @@ Les mêmes variables (`N8N_SECRET`, `YOUTUBE_API_KEY`, etc.) doivent aussi être
 |-------|-------------|
 | `content` | Films et séries (status=active visible public) |
 | `episodes` | Épisodes rattachés à content |
+| `seasons` | Saisons d'une série (content_id, season_number) |
 | `content_sources` | Sources multi-plateforme par contenu/épisode |
 | `discovery_candidates` | Staging pipeline (n8n → ici en premier) |
 | `keyword_queue` | Mots-clés avec priorité auto-ajustée |
 | `provider_health` | État des providers (YouTube, DM, Archive…) |
 | `keyword_performance` | Log par run de keyword |
-| `dead_links` | Liens signalés morts (3 rapports → hidden) |
+| `dead_links` | Liens signalés morts (source_id → content_sources) |
 | `content_requests` | Demandes utilisateurs |
 
 ### Appliquer le schéma

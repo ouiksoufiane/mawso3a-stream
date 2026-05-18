@@ -124,13 +124,21 @@ export async function incrementView(id) {
   } catch {}
 }
 
+// ── Content sources (multi-platform) ─────────────────────────
+export async function getContentSources(contentId, episodeId = null) {
+  let q = `content_sources?content_id=eq.${encodeURIComponent(contentId)}&active=eq.true&embeddable=eq.true&order=is_primary.desc,added_at.asc&select=*`;
+  if (episodeId) q += `&episode_id=eq.${encodeURIComponent(episodeId)}`;
+  else q += '&episode_id=is.null';
+  try { return await sbGet(q); } catch { return []; }
+}
+
 // ── Report dead link ─────────────────────────────────────────
-export async function reportDeadLink(contentId, ytId) {
+export async function reportDeadLink(contentId, ytId, sourceId = null) {
   try {
     await fetch('/api/report-dead-link', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contentId, ytId })
+      body: JSON.stringify({ contentId, ytId, sourceId })
     });
   } catch {}
 }

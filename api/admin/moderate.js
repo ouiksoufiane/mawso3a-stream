@@ -44,12 +44,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const N8N_SECRET       = process.env.N8N_SECRET;
+  const ADMIN_TOKEN      = process.env.ADMIN_TOKEN;
   const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_KEY;
 
-  if (!N8N_SECRET || !SUPABASE_SERVICE) return res.status(500).json({ error: 'Config error' });
+  if (!SUPABASE_SERVICE) return res.status(500).json({ error: 'Config error' });
 
   const auth = req.headers['authorization'] || '';
-  if (auth !== `Bearer ${N8N_SECRET}`) {
+  const validTokens = [N8N_SECRET, ADMIN_TOKEN].filter(Boolean);
+  if (!validTokens.length || !validTokens.some(t => auth === `Bearer ${t}`)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 

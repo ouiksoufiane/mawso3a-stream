@@ -5,13 +5,21 @@ const ALLOWED_ORIGINS = new Set([
   'https://mawso3a-stream-chi.vercel.app'
 ]);
 
-// Stable series slug: identical algorithm to api/import.js slugifySeries
-// Produces: series_<arabicSafe>_<base36hash>
 function slugifySeries(name) {
   let h = 5381;
   for (let i = 0; i < name.length; i++) h = (h * 33 ^ name.charCodeAt(i)) >>> 0;
   const safe = name.replace(/\s+/g, '_').replace(/[^؀-ۿa-zA-Z0-9_]/g, '').slice(0, 35);
   return `series_${safe}_${h.toString(36).slice(0, 5)}`;
+}
+
+function embedUrlForPlatform(platform, platformId) {
+  switch (platform) {
+    case 'youtube':     return `https://www.youtube.com/embed/${platformId}?rel=0&modestbranding=1`;
+    case 'dailymotion': return `https://www.dailymotion.com/embed/video/${platformId}`;
+    case 'vimeo':       return `https://player.vimeo.com/video/${platformId}`;
+    case 'archive':     return `https://archive.org/embed/${platformId}`;
+    default:            return null;
+  }
 }
 
 // Quality scoring: score >= 85 → active, 60-84 → pending_review, < 60 → rejected
@@ -174,6 +182,18 @@ export default async function handler(req, res) {
 
           const ins = await sb('POST', 'content', content, SVC);
           if (ins.ok) {
+            // Create primary content_source row
+            await sb('POST', 'content_sources', {
+              content_id: contentId,
+              platform,
+              platform_id: c.platform_id,
+              embed_url: embedUrlForPlatform(platform, c.platform_id),
+              source_url: c.source_url || null,
+              is_primary: true,
+              embeddable: true,
+              is_working: true,
+              last_checked_at: new Date().toISOString()
+            }, SVC);
             await sb('PATCH', `discovery_candidates?id=eq.${encodeURIComponent(c.id)}`,
               { status: 'published' }, SVC);
             published++;
@@ -206,6 +226,18 @@ export default async function handler(req, res) {
 
           const ins = await sb('POST', 'content', content, SVC);
           if (ins.ok) {
+            // Create primary content_source row
+            await sb('POST', 'content_sources', {
+              content_id: contentId,
+              platform,
+              platform_id: c.platform_id,
+              embed_url: embedUrlForPlatform(platform, c.platform_id),
+              source_url: c.source_url || null,
+              is_primary: true,
+              embeddable: true,
+              is_working: true,
+              last_checked_at: new Date().toISOString()
+            }, SVC);
             await sb('PATCH', `discovery_candidates?id=eq.${encodeURIComponent(c.id)}`,
               { status: 'published' }, SVC);
             published++;
@@ -218,12 +250,47 @@ export default async function handler(req, res) {
           }
 
         } else if (c.type === 'episode' && c.series_title) {
-          const seriesId = slugifySeries(c.series_title.toLowerCase().trim());
+          const seriesKey = c.series_title.toLowerCase().trim();
+          const seriesId = slugifySeries(seriesKey);
           const epId = `ep_${platform}_${c.platform_id}`;
+          const seasonNum = c.season || 1;
+
+          // Guarantee parent series exists before inserting episode
+          const seriesCheck = await sb('GET',
+            `content?id=eq.${encodeURIComponent(seriesId)}&limit=1&select=id`, null, SVC);
+          if (!Array.isArray(seriesCheck.data) || seriesCheck.data.length === 0) {
+            const defaultPoster = platform === 'archive'
+              ? `https://archive.org/services/img/${c.platform_id}`
+              : `https://img.youtube.com/vi/${c.platform_id}/mqdefault.jpg`;
+            await sb('POST', 'content', {
+              id: seriesId,
+              type: 'series',
+              title_ar: c.series_title.slice(0, 200),
+              language: c.language || 'ar_dubbed',
+              origin: c.origin || 'other',
+              category: c.category || 'drama',
+              poster_url: c.poster_url || defaultPoster,
+              yt_id: ytId,
+              embeddable: true,
+              quality_score: 60,
+              primary_platform: platform,
+              status: 'active',
+              source_count: 0
+            }, SVC);
+          }
+
+          // Upsert season row
+          const seasonId = `${seriesId}_s${seasonNum}`;
+          await sb('POST', 'seasons', {
+            id: seasonId,
+            content_id: seriesId,
+            season_number: seasonNum
+          }, SVC);
+
           const ep = {
             id: epId,
             content_id: seriesId,
-            season: c.season || 1,
+            season: seasonNum,
             episode: c.episode_num || 1,
             title_ar: (c.title_ar || c.title_raw || '').slice(0, 200),
             yt_id: ytId,
@@ -234,7 +301,19 @@ export default async function handler(req, res) {
 
           const ins = await sb('POST', 'episodes', ep, SVC);
           if (ins.ok) {
-            // Refresh avail_eps count
+            // Create content_source for this episode
+            await sb('POST', 'content_sources', {
+              content_id: seriesId,
+              episode_id: epId,
+              platform,
+              platform_id: c.platform_id,
+              embed_url: embedUrlForPlatform(platform, c.platform_id),
+              source_url: c.source_url || null,
+              is_primary: true,
+              embeddable: true,
+              is_working: true,
+              last_checked_at: new Date().toISOString()
+            }, SVC);
             await fetch(`${SB_URL}/rpc/refresh_avail_eps`, {
               method: 'POST',
               headers: { 'apikey': SVC, 'Authorization': `Bearer ${SVC}`, 'Content-Type': 'application/json' },

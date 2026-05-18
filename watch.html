@@ -77,8 +77,8 @@
 </footer>
 
 <script type="module">
-import { getContentById, getEpisodes, getContent, incrementView, reportDeadLink } from './js/api.js';
-import { originBadge, langBadge, cardHTML, CW, FAV, toast, formatDuration, esc } from './js/utils.js';
+import { getContentById, getEpisodes, getContent, incrementView, reportDeadLink, getContentSources } from './js/api.js';
+import { originBadge, langBadge, cardHTML, CW, FAV, toast, formatDuration, esc, getEmbedUrl, embedUrlFromYtId, platformLabel } from './js/utils.js';
 
 window.scrollRow = function(id, dir) {
   const el = document.getElementById(id);
@@ -111,14 +111,49 @@ function injectLD(schema) {
   document.head.appendChild(el);
 }
 
-function embed(ytId) {
-  const src = ytId.startsWith('arc_')
-    ? `https://archive.org/embed/${esc(ytId.slice(4))}?autoplay=1`
-    : `https://www.youtube.com/embed/${esc(ytId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+let CURRENT_SOURCES = [];
+let CURRENT_SOURCE_ID = null;
+
+function embedSource(source) {
+  const src = getEmbedUrl(source, true);
+  if (!src) return;
+  CURRENT_SOURCE_ID = source.id;
   document.getElementById('playerFrame').innerHTML =
     `<iframe src="${src}"
       allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" loading="eager"></iframe>`;
 }
+
+function embedFallback(ytId) {
+  const src = embedUrlFromYtId(ytId, true);
+  if (!src) return;
+  document.getElementById('playerFrame').innerHTML =
+    `<iframe src="${src}"
+      allowfullscreen allow="autoplay; encrypted-media; picture-in-picture" loading="eager"></iframe>`;
+}
+
+function renderSourceSelector(sources, containerId) {
+  if (!sources || sources.length <= 1) return;
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const btns = sources.map(s => `
+    <button class="btn btn-ghost btn-sm source-btn ${s.id === CURRENT_SOURCE_ID ? 'on' : ''}"
+      data-sid="${s.id}" onclick="window.__switchSource(${s.id})">
+      ${platformLabel(s.platform)}
+    </button>`).join('');
+  container.insertAdjacentHTML('beforeend',
+    `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
+       <span style="font-size:12px;color:var(--text-dim)">مصادر:</span>${btns}
+     </div>`);
+}
+
+window.__switchSource = function(sourceId) {
+  const source = CURRENT_SOURCES.find(s => s.id === sourceId);
+  if (!source) return;
+  embedSource(source);
+  document.querySelectorAll('.source-btn').forEach(b => {
+    b.classList.toggle('on', +b.dataset.sid === sourceId);
+  });
+};
 
 function showInfo() {
   document.getElementById('playerInfo').style.display = '';
@@ -130,12 +165,12 @@ function metaBadges(item) {
   return `${originBadge(item.origin||'other')}${langBadge(item.language||'ar_dubbed')}${yr}${dur}`;
 }
 
-function reportBtn(id, ytId) {
-  return `<button class="report-btn" onclick="window.__report('${esc(id)}','${esc(ytId)}')">⚠️ الإبلاغ عن رابط معطل</button>`;
+function reportBtn(id, ytId, sourceId = null) {
+  return `<button class="report-btn" onclick="window.__report('${esc(id)}','${esc(ytId)}',${sourceId || 'null'})">⚠️ الإبلاغ عن رابط معطل</button>`;
 }
 
-window.__report = async function(id, ytId) {
-  await reportDeadLink(id, ytId);
+window.__report = async function(id, ytId, sourceId) {
+  await reportDeadLink(id, ytId, sourceId || null);
   toast('تم الإبلاغ. شكراً على مساعدتك! ✅', 'success');
 };
 
@@ -153,11 +188,17 @@ window.__toggleFavMain = function(id) {
 };
 
 async function loadFilm(id) {
-  const film = await getContentById(id);
+  const [film, sources] = await Promise.all([
+    getContentById(id),
+    getContentSources(id)
+  ]);
   if (!film) {
     document.getElementById('pTitle').textContent = 'الفيلم غير موجود';
     showInfo(); return;
   }
+
+  CURRENT_SOURCES = sources;
+  const primarySource = sources.find(s => s.is_primary && s.is_working !== false) || sources.find(s => s.is_working !== false);
 
   const pageUrl = `${BASE}/watch.html?id=${encodeURIComponent(id)}`;
   setMeta(film.title_ar, film.description, film.poster_url, pageUrl);
@@ -166,16 +207,20 @@ async function loadFilm(id) {
     description: film.description||undefined, image: film.poster_url||undefined,
     datePublished: film.year?String(film.year):undefined,
     inLanguage:'ar', url: pageUrl, genre: film.category||undefined });
-  embed(film.yt_id);
+
+  if (primarySource) embedSource(primarySource);
+  else embedFallback(film.yt_id);
   showInfo();
 
   document.getElementById('pTitle').textContent = film.title_ar;
   document.getElementById('pMeta').innerHTML = metaBadges(film);
-  document.getElementById('pActions').innerHTML = favBtn(film.id) + reportBtn(film.id, film.yt_id);
+  const srcId = primarySource?.id || null;
+  document.getElementById('pActions').innerHTML = favBtn(film.id) + reportBtn(film.id, film.yt_id, srcId);
 
   if (film.description) {
     document.getElementById('pExtra').innerHTML = `<div class="player-desc">${esc(film.description)}</div>`;
   }
+  renderSourceSelector(sources, 'pExtra');
 
   // Save CW + increment view
   CW.save({ id: film.id, title: film.title_ar, href: `watch.html?id=${film.id}`, type:'film', progress:5 });
@@ -196,11 +241,12 @@ async function loadFilm(id) {
 }
 
 async function loadEpisode(epId, serId) {
-  const [epArr, series] = await Promise.all([
+  const [epArr, series, sources] = await Promise.all([
     fetch(`${SB_URL}/episodes?id=eq.${encodeURIComponent(epId)}&select=*`, {
       headers: { 'apikey': SB_ANON, 'Authorization': `Bearer ${SB_ANON}` }
     }).then(r => r.json()),
-    serId ? getContentById(serId) : null
+    serId ? getContentById(serId) : null,
+    serId ? getContentSources(serId, epId) : Promise.resolve([])
   ]);
 
   const ep = Array.isArray(epArr) ? epArr[0] : null;
@@ -217,7 +263,11 @@ async function loadEpisode(epId, serId) {
     name: epTitle, partOfSeries: series ? { '@type':'TVSeries', name: series.title_ar } : undefined,
     episodeNumber: ep.episode||undefined, partOfSeason: { '@type':'TVSeason', seasonNumber: ep.season||1 },
     inLanguage:'ar', url: epPageUrl });
-  embed(ep.yt_id);
+
+  CURRENT_SOURCES = sources;
+  const primarySource = sources.find(s => s.is_primary && s.is_working !== false) || sources.find(s => s.is_working !== false);
+  if (primarySource) embedSource(primarySource);
+  else embedFallback(ep.yt_id);
   showInfo();
 
   document.getElementById('pTitle').textContent = epTitle;
@@ -226,7 +276,8 @@ async function loadEpisode(epId, serId) {
     ${ep.duration_sec ? `<span class="badge" style="background:rgba(255,255,255,.05);color:var(--text-dim)">${formatDuration(ep.duration_sec)}</span>` : ''}
     ${ep.source ? `<span class="badge b-ar">${esc(ep.source)}</span>` : ''}
   `;
-  document.getElementById('pActions').innerHTML = reportBtn(ep.id || serId, ep.yt_id);
+  const epSrcId = primarySource?.id || null;
+  document.getElementById('pActions').innerHTML = reportBtn(ep.id || serId, ep.yt_id, epSrcId);
 
   if (ep.darija_desc) {
     document.getElementById('pExtra').innerHTML = `
@@ -235,6 +286,7 @@ async function loadEpisode(epId, serId) {
         ${esc(ep.darija_desc)}
       </div>`;
   }
+  renderSourceSelector(sources, 'pExtra');
 
   // Save CW
   if (series) {
